@@ -1,0 +1,441 @@
+# oasis/sample.ascoas -- show format of ASCII version of OASIS files
+#
+# last modified:   29-Sep-2006  Fri  12:41
+#
+# Copyright (c) 2004 SoftJin Infotech Private Ltd.
+# See the accompanying file LICENSE.
+
+# Comments begin with a # and continue to the end of the line.
+# Comments may appear on the same line as data.
+#
+# Whitespace separates tokens.  The whitespace may be omitted in some
+# cases, but it is better to put them always.  Lines may be broken
+# anywhere; line breaks are irrelevant and are treated just like other
+# whitespace.
+#
+# Anything enclosed in square brackets is ignored.  This is to let
+# ascii2oasis parse the output of oasis2ascii, which with the -a option
+# puts the record offset in square brackets at the beginning of the line.
+#
+# Unsigned-integers are represented as in C/C++, with a 0x prefix for
+# hexadecimal numbers and a 0 prefix for octal numbers.
+#
+# Signed-integers are preceded by an optional sign, with no intervening
+# whitespace.
+#
+# Real numbers may appear in several forms:
+#  - Types 0 and 1 have the same form as integers
+#  - Types 2 to 5 (reciprocals and general rationals) have the form
+#        [-+]?NNNNN/MMMMM
+#    That is, an optional sign followed by an unsigned-integer, a slash,
+#    and another unsigned-integer.  There is no way to create a rational
+#    (type 4 or 5) whose numerator or denominator is 1.  ascii2oasis will
+#    use the reciprocal or integer form when creating the OASIS file.
+#  - A type 6 (single-precision float) real has the same form as a
+#    C float literal, with an f or F suffix.
+#  - A type 7 (double-precision float) real has the same form as a
+#    C double literal.
+#
+# Strings are enclosed in double-quotes, with double-quote and backslash
+# characters escaped by a backslash.  Unprintable characters must appear
+# in the form \ooo where ooo is the octal representation of the
+# character.  Other C escape sequences like \r and \n are not allowed.
+#
+# 1-deltas are just signed-integers.  2-deltas have the form
+# direction:offset where direction is one of n,s,e,w and offset is an
+# unsigned-integer.  The initial letter gives the direction.  Example:
+# n:20.  3-deltas also have the form direction:offset, but now direction
+# is one of n,s,e,w,ne,nw,se,sw.  Examples: s:30, ne:99.  A g-delta may
+# be written either as a 3-delta or as a pair of signed-integers
+# separated by a comma and enclosed in parentheses.  Examples: (-20, 4)
+# (400,-200).  Whitespace is allowed inside the parentheses for now.
+#
+# A repetition is written as a repetition-type (an unsigned-integer)
+# followed by the repetition parameters in the same order as in the
+# OASIS file.  The table below gives the details.  The first column
+# is the name printed by oasis-print, a higher-level OASIS dumper.
+#
+#    Symbolic name   type  parameters
+#    -------------------------------------------------------
+#    ReusePrevious      0
+#    Matrix             1  xdimen ydimen xspace yspace
+#    UniformX           2  xdimen xspace
+#    UniformY           3  ydimen yspace
+#    VaryingX           4  xdimen xspace_1 ... xspace_n
+#    GridVaryingX       5  xdimen grid xspace_1 ... xspace_n
+#    VaryingY           6  ydimen yspace_1 ... yspace_n
+#    GridVaryingY       7  ydimen grid yspace_1 ... yspace_n
+#    TiltedMatrix       8  ndimen mdimen ndelta mdelta
+#    Diagonal           9  dimen delta
+#    Arbitrary         10  dimen delta_1 ... delta_n
+#    GridArbitrary     11  dimen grid delta_1 ... delta_n
+#
+# A point-list is written as a type (an unsigned-integer), the count of
+# deltas that follow, and then the 1-deltas, 2-deltas, 3-deltas, or
+# g-deltas, depending on the type.
+#
+# Each record begins with the record name.  This is followed by the
+# contents of the record.  There is no record terminator.  If a record
+# has a variable number of fields, it ends when the next token in the
+# input is a record name.
+#
+# In records that have an info-byte (the element and PROPERTY records),
+# the info-byte is optional.  If it appears, it must be an
+# unsigned-integer and must come immediately after the record name.  If
+# it does not, its value is computed from the following record fields.
+# The values of those fields are specified using keyword/value pairs.
+# Some keywords just set bits in the info-byte.  These keywords are not
+# followed by values.  Keywords may appear in any order; they need not
+# follow the order of fields in the OASIS file.
+#
+# In records without an info-byte, the fields must appear in the ASCII
+# file in the same order that they appear in the OASIS file.
+#
+# Case is irrelevant in record names and keywords.
+#
+# In addition to the regular OASIS records, ascii2oasis defines
+# 'pseudo-records' for the additional information it needs to
+# generate the OASIS file.  These pseudo-records are:
+#
+#     END_CBLOCK
+#         Marks the end of a CBLOCK.
+#
+#     CELLNAME_TABLE
+#     TEXTSTRING_TABLE
+#     PROPNAME_TABLE
+#     PROPSTRING_TABLE
+#     LAYERNAME_TABLE
+#     XNAME_TABLE
+#         These mark the beginning of a name table.
+#
+# In the CBLOCK record, ascii2oasis uses only the comp-type field, whose
+# only legal value is 0.  All further records until the END_CBLOCK
+# pseudo-record are placed in the CBLOCK.
+#
+# In the START and END records, ascii2oasis ignores the offsets of the
+# name tables.  It uses the NAME_TABLE pseudo-records to get them.
+#
+# In the END record, ascii2oasis ignores the validation scheme and
+# signature.  It provides a command-line option to select the scheme.
+#
+# BUG:
+# ascii2oasis does nothing special about S_CELL_OFFSET properties.
+# In the output OASIS file the offsets they specify will almost certainly
+# be wrong.
+
+
+#=======================================================================
+
+
+START "1.0" 1000 1
+
+
+##  CELL
+##  This record contains either a string or an unsigned-integer
+#
+CELL 0
+
+
+##  8 bytes of padding
+##  Records need not begin on a new line, and the case of the record name
+##  does not matter.
+#
+Pad pAD PaD pad  PAD PAD pad pad
+
+
+XYRELATIVE
+XYABSOLUTE
+
+
+##  PLACEMENT
+##  This is for PLACEMENT type 17 (without magnification or angle)
+##  Valid fields:  refnum, name, x, y, angle, flip, rep
+##  The fields 'refnum' and 'name' are mutually exclusive.
+##  'flip' has no value.  If it is present, the F bit in the info-byte
+##  is set to 1.
+##  The value for 'angle' must be one of 0, 90, 180, 270.
+#
+PLACEMENT refnum 3    x -20  y 40  angle 90  flip  rep 1 5 8 20 30
+PLACEMENT name "foo"               angle 90  flip  rep 0
+PLACEMENT
+#
+##  The first line places the cell with reference-number 3 at (-20, 40),
+##  flipped about the X axis and rotated 90 degrees.  The repetition
+##  specifies a 5x8 matrix with x-spacing 20 and y-spacing 30.
+
+
+##  PLACEMENT_X
+##  This is for PLACEMENT type 18, with magnification and angle.
+##  (Think of the 'X' as standing for 'transform'.)
+##  Valid fields:  refnum, name, x, y, mag, angle, flip, rep
+##  The fields 'refnum' and 'name' are mutually exclusive.
+##  'flip' has no value.  If it is present, the F bit in the info-byte
+##  is set to 1.
+#
+PLACEMENT_X 0x86  name "foo"  flip  mag 3/2  angle 45
+PLACEMENT_X
+#
+##  The first record places the cell "foo" at the same location with
+##  magnification 1.5 tilted by 45 degrees.  The optional info-byte
+##  appears here (0x86), and because of it the 'flip' keyword has no
+##  effect.  The F bit gets set in the info-byte computed from the fields,
+##  but the computed info-byte is ignored because the info-byte appears
+##  explicitly.  That is why it is dangerous to specify info-byte in files
+##  you create manually.
+
+
+##  TEXT
+##  Valid fields:  refnum, string, textlayer, texttype, x, y, rep
+##  The fields 'refnum' and 'string' are mutually exclusive
+#
+TEXT  string "sample-text"  x -100  y -100  textlayer 1  texttype 2
+      rep 2 5 100
+TEXT  refnum 1  rep 0  x 20  y 20
+TEXT
+
+
+##  RECTANGLE
+##  Valid fields:  layer, datatype, width, height, x, y, rep
+#
+RECTANGLE  layer 2  datatype 3             # line breaks can come anywhere
+           width 22  height 44  x 5  y 5   # in-line comment
+           rep 4  3  10 20 30 40
+RECTANGLE
+#
+##  Repetition type 4 is varying-X.  There are 5 instances, so the
+##  count is 5-2 = 3.  The x-spaces are 10, 20, 30, and 40.
+
+
+##  POLYGON
+##  Valid fields:  layer, datatype, ptlist, x, y, rep
+#
+POLYGON layer 0  datatype 1  x -10  y -10
+        ptlist 0 4  6 4 -8 -2
+POLYGON ptlist 1 4  -8 2 2 2
+POLYGON ptlist 2 5  e:8 n:6 w:4 s:2 w:4
+POLYGON ptlist 3 4  nw:2 n:4 e:6 s:2
+POLYGON ptlist 4 2  w:4 (2,-6)
+POLYGON ptlist 5 9  (0,-1)  (10,0)  (0,2)  (0,-1)  (0,-1)
+                    (-10,2) (-10,0) (0,-1) (0,-1)
+POLYGON
+#
+##  The point-lists above are from Table 8 in the OASIS spec.
+
+
+##  PATH
+##  Valid fields:  layer, datatype, halfwidth, start_extn, end_extn,
+##                 ptlist, x, y, rep
+##  The value for start_extn and end_extn is either a signed-integer or
+##  the keyword 'halfwidth'.  Specify 0 for flush extensions.
+#
+PATH  layer 99  datatype 42  halfwidth 3  x 0  y 0
+     start_extn halfwidth  end_extn -10
+     ptlist 4 3 (5,5) (-5,5) sw:5
+     rep 9 5 (20,-10)
+PATH
+
+
+##  TRAPEZOID
+##  This is for TRAPEZOID type 23 records, with both delta-a and delta-b.
+##  Valid fields:  layer, datatype, horizontal, vertical,
+##                 delta_a, delta_b, width, height,  x, y, rep
+##  The keywords 'horizontal' and 'vertical' are mutually exclusive.
+##  'horizontal' makes the trapezoid horizontal (sets the O bit in the
+##  info-byte to 0) and 'vertical' makes the trapezoid vertical (O bit = 1).
+##  The default is horizontal.
+##  delta_a and delta_b must be present
+#
+TRAPEZOID  vertical  delta_a -10  delta_b -10  width 50  height 80
+           x 2147483647  y -2147483647
+           layer 9 datatype 10 rep 9 10 nw:20
+TRAPEZOID  delta_a 0  delta_b 0
+
+
+##  TRAPEZOID_A
+##  This is for TRAPEZOID type 24 records, with only delta-a.
+##  Valid fields:  layer, datatype, horizontal, vertical,
+##                 delta_a, width, height, x, y, rep 0
+#
+##  delta_a must be present
+#
+TRAPEZOID_A  horizontal layer 5 datatype 10 delta_a 0
+             width 20  height 10  x 3 y 0 rep 0
+TRAPEZOID_A  delta_a 0
+
+
+##  TRAPEZOID_B
+##  This is for TRAPEZOID type 25 records, with only delta-b.
+##  Valid fields:  layer, datatype, horizontal, vertical,
+##                 delta_b, width, height, x, y, rep
+#
+##  delta_b must be present
+#
+TRAPEZOID_B  delta_b 10  height 20  width 40 x 0 y 0
+             rep 10 2  n:100 nw:100 (-100,-100)
+             layer 10 datatype 20
+TRAPEZOID_B  delta_b 0
+
+
+##  CTRAPEZOID
+##  Valid fields:  layer, datatype, ctraptype, width, height, x, y, rep
+#
+CTRAPEZOID  layer 10 datatype 20 ctraptype 5 height 20 width 60
+            x 10 y 10  rep 11 2  50  n:100 nw:100 (-100,-100)
+CTRAPEZOID
+
+
+##  CIRCLE
+##  Valid fields:  layer, datatype, radius, x, y, rep
+#
+CIRCLE  layer 10  datatype 20  radius 30  x 40 y 50  rep 3 100 10
+CIRCLE
+
+
+##  PROPERTY
+##  Valid fields:  refnum, name, standard, values
+##  The fields 'refnum' and 'name' are mutually exclusive.
+##  The keyword 'standard' has no value.  If it appears, the S bit in
+##  the info-byte is set to 1.
+#
+PROPERTY refnum 0  standard  values 2  8 1  11 "foo"
+PROPERTY
+PROPERTY name "foo"  values 16
+        0   10
+        1  -10
+        2   1/10
+        3  -1/10
+        4   2/3
+        5  -9/5
+        6   3.14f
+        7  -2.71828e99
+        8   42
+        9  -42
+        10  "f o o"
+        11  "\001\002\003\004..\177..\377"
+        12  "bar"
+        13  0
+        14  1
+        15  2
+
+
+##  PROPERTY_REPEAT
+##  This is for PROPERTY records of type 29.
+#
+PROPERTY_REPEAT
+
+
+##  XELEMENT
+#
+XELEMENT 0 "xelement-string"
+
+
+##  XGEOMETRY
+##  Valid fields:  attribute, layer, datatype, string, x y, rep
+##  The fields 'attribute' and 'string' are required.
+#
+XGEOMETRY  layer 10  datatype 20  x 5  y 0
+           attribute 567
+           string  "geometry-string\001\17\28\39\377\"\\"
+XGEOMETRY attribute 99 string "foo"
+
+
+##  Create two empty CBLOCKs.  All three fields in the CBLOCK (the
+##  compression type, uncomp-byte-count, comp-byte-count) must appear
+##  though only the first is used.  That must be 0 because that is the only
+##  compression type defined.
+#
+CBLOCK 0 0 0
+END_CBLOCK
+CBLOCK 0 0 0
+END_CBLOCK
+
+
+#-----------------------------------------------------------------------
+## Test ctrapezoid code in Trapezoid class
+
+cell "trap"
+
+ctrapezoid  ctraptype 0  width 30  height 5  layer 0  datatype 0  x 0  y 0
+ctrapezoid  ctraptype 1
+ctrapezoid  ctraptype 2
+ctrapezoid  ctraptype 3
+ctrapezoid  ctraptype 4
+ctrapezoid  ctraptype 5
+ctrapezoid  ctraptype 6
+ctrapezoid  ctraptype 7
+
+ctrapezoid  ctraptype 8  width 5  height 30
+ctrapezoid  ctraptype 9
+ctrapezoid  ctraptype 10
+ctrapezoid  ctraptype 11
+ctrapezoid  ctraptype 12
+ctrapezoid  ctraptype 13
+ctrapezoid  ctraptype 14
+ctrapezoid  ctraptype 15
+
+ctrapezoid  ctraptype 16
+ctrapezoid  ctraptype 17
+ctrapezoid  ctraptype 18
+ctrapezoid  ctraptype 19
+
+ctrapezoid  ctraptype 20
+ctrapezoid  ctraptype 21
+ctrapezoid  ctraptype 22
+ctrapezoid  ctraptype 23
+
+ctrapezoid  ctraptype 24
+ctrapezoid  ctraptype 25
+
+
+#-----------------------------------------------------------------------
+##  Name tables
+
+##  Each FOONAME_TABLE pseudo-record states that the next record is the
+##  first one in the FOONAME table.
+
+##  CELLNAME, TEXTSTRING, PROPNAME, PROPSTRING and XNAME records come in
+##  two varieties: with a refnum and without.  For each type of name only
+##  one of the two varieties may be present in any file.
+
+
+PROPNAME_TABLE
+PROPNAME "S_GDS_PROPERTY" 0
+#PROPNAME "propname-2"
+
+
+PROPSTRING_TABLE
+PROPSTRING "propstring-99" 99
+PROPSTRING "propstring-0" 0
+PROPSTRING "propstring-1" 1
+PROPSTRING "propstring-2" 2
+#PROPSTRING "propstring-2"
+
+
+CELLNAME_TABLE
+CELLNAME "cellname-1" 3
+CELLNAME "cellname-2" 0
+
+
+TEXTSTRING_TABLE
+TEXTSTRING "textstring-1" 1
+#TEXTSTRING "textstring-2"
+
+
+LAYERNAME_TABLE
+CBLOCK 0 0 0
+LAYERNAME_GEOMETRY "geom-layer-1"  0        1 10
+LAYERNAME_GEOMETRY "geom-layer-2"  2 20     3 30
+LAYERNAME_TEXT     "text-layer-1"  4 40 50  4 60 70
+LAYERNAME_TEXT     "text-layer-2"  4 80 90  0
+END_CBLOCK
+
+
+XNAME_TABLE
+XNAME 0xffffffff "xname-string-1"
+#XNAME 0xffffffff "xname-string-2" 42
+
+
+##  END
+##  Only the 'strict' flags are used; everything else is ignored.
+#
+END 0 0  0 0  0 0  0 0  1 0  1 0  crc32 0

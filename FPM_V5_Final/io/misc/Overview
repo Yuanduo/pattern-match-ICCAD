@@ -1,0 +1,55 @@
+# misc/Overview
+#
+# last modified:   02-Mar-2005  Wed  11:39
+#
+# Copyright (c) 2004 SoftJin Infotech Private Ltd.
+# See the accompanying file LICENSE.
+
+This directory contains code that is not specific to the project
+it is contained in.  Every .cc file below has a corresponding .h
+file for the interface.  The .h files listed have no corresponding
+.c file.
+
+Start by reading globals.h and utils.{h,cc}.  The others are
+independent of one another.
+
+
+arith.cc
+        Functions for integer arithmetic with checks for overflow.
+
+buffer.h
+        Defines classes Buffer, ReadBuffer, and WriteBuffer, which
+        are data buffers allocated in the free store.
+
+geometry.h
+        Defines template classes Point2d and Box, for points and
+        bounding boxes in two dimensions.
+
+globals.h
+        Defines standard constants and types.  This file is #included
+        directly or indirectly by every other file.
+
+gzfile.cc
+        Defines class FileHandle to hide the difference between
+        compressed and uncompressed files.  The commands in the gdsii
+        directory use this to uncompress .gds.gz files automatically.
+
+ptrlist.h
+        Defines class PointerList<T>, a list of pointers to T objects.
+        The objects are allocated in the free store and the list
+        owns the objects.  That is, it will delete the objects when
+        it is destroyed.
+
+ptrvec.h
+        Defines class PointerVector<T>.
+        The vector equivalent of PointerList<T>.
+
+stringpool.cc
+        Defines class StringPool, a lifetime-based allocator for
+        small strings.
+
+timer.cc
+        Defines class CodeTimer, for timing code segments.
+
+utils.cc
+        Miscellaneous useful tiny classes and functions.

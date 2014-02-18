@@ -1,0 +1,14 @@
+Sequence Pair: 4 1 3 2 0, 0 2 3 4 1
+Total number of rectangles: 5
+Rect 0:[10,5]-[20,10]
+Rect 1:[7,28]-[9,34]
+Rect 2:[3,13]-[6,21]
+Rect 3:[2,22]-[4,31]
+Rect 4:[5,27]-[10,32]
+Sequence Pair: 4 1 3 2 0, 0 2 3 4 1
+Total number of rectangles: 5
+Rect 0:[10,5]-[20,10]
+Rect 1:[7,28]-[9,34]
+Rect 2:[3,13]-[6,21]
+Rect 3:[2,22]-[4,31]
+Rect 4:[5,27]-[10,32]

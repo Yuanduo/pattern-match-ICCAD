@@ -1,0 +1,45 @@
+Now Compile booleng.cpp ...
+g++ -o booleng.o -I.  -c  -Wunused -g booleng.cpp
+Done!
+Now Compile graph.cpp ...
+g++ -o graph.o -I.  -c  -Wunused -g graph.cpp
+Done!
+Now Compile graphlst.cpp ...
+g++ -o graphlst.o -I.  -c  -Wunused -g graphlst.cpp
+Done!
+Now Compile instonly.cpp ...
+g++ -o instonly.o -I.  -c  -Wunused -g instonly.cpp
+Done!
+Now Compile line.cpp ...
+g++ -o line.o -I.  -c  -Wunused -g line.cpp
+Done!
+Now Compile link.cpp ...
+g++ -o link.o -I.  -c  -Wunused -g link.cpp
+link.cpp:766:2: warning: no newline at end of file
+Done!
+Now Compile lpoint.cpp ...
+g++ -o lpoint.o -I.  -c  -Wunused -g lpoint.cpp
+Done!
+Now Compile node.cpp ...
+g++ -o node.o -I.  -c  -Wunused -g node.cpp
+Done!
+Now Compile record.cpp ...
+g++ -o record.o -I.  -c  -Wunused -g record.cpp
+Done!
+Now Compile scanbeam.cpp ...
+g++ -o scanbeam.o -I.  -c  -Wunused -g scanbeam.cpp
+Done!
+Now Generating ./kbool.a
+#g++ -o ./kbool.a ./booleng.o ./graph.o ./graphlst.o ./instonly.o ./line.o ./link.o ./lpoint.o ./node.o ./record.o ./scanbeam.o
+ar: creating ./kbool.a
+a - ./booleng.o
+a - ./graph.o
+a - ./graphlst.o
+a - ./instonly.o
+a - ./line.o
+a - ./link.o
+a - ./lpoint.o
+a - ./node.o
+a - ./record.o
+a - ./scanbeam.o
+Done!

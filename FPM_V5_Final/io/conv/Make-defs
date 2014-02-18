@@ -1,0 +1,62 @@
+# conv/Make-defs					-*- makefile -*-
+#
+# last modified:   01-Jan-2010  Fri  18:31
+#
+# Copyright (c) 2004 SoftJin Infotech Private Ltd.
+# This software may be used only under the terms of the SoftJin
+# Source License.  See the accompanying file LICENSE for details.
+#
+# This file is included by ../Makefile.  All paths are with
+# respect to the parent directory because that is where make runs.
+# ../Makefile defines the variables bindir, libdir, and objdir.
+#
+# Because ../Makefile also includes Make-defs from all sibling
+# directories, all variables defined here begin with 'conv_' to avoid
+# name conflicts.
+
+
+conv_library = $(libdir)/libconv.a
+
+conv_library_objects =		    \
+	$(objdir)/conv_gds-oasis.o  \
+	$(objdir)/conv_ptgroup.o
+
+conv_execs =	\
+	$(bindir)/gds2oasis
+
+
+# Libraries on which the executables in $(conv_execs) depend.
+# External libraries like libz are not in this list.
+
+conv_dep_libs =		 \
+	$(conv_library)	 \
+	$(oasis_library) \
+	$(gdsii_library) \
+	$(misc_library)
+
+
+# Libraries needed to link the executables in $(conv_execs)
+
+conv_link_libs =	 \
+	$(conv_dep_libs) \
+	$(Zlibrary)
+
+
+#-----------------------------------------------------------------------
+
+
+$(objdir)/conv_%.o:   conv/%.cc
+	$(COMPILE_CXX) -c $< -o $@
+
+conv_all:	$(conv_library) $(conv_execs)
+
+$(conv_library):   $(conv_library_objects)
+	ar rv $@ $?
+
+$(bindir)/gds2oasis:   $(objdir)/conv_gds2oasis.o $(conv_dep_libs)
+	$(LINK_CXX) $(objdir)/conv_gds2oasis.o $(conv_link_libs) -o $@
+
+
+conv_clean:
+	rm -f $(conv_library) $(conv_execs) $(objdir)/conv_*
+	cd conv;  rm -f $(StandardGarbage)

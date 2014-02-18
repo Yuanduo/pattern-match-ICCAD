@@ -1,0 +1,142 @@
+# gdsii/DesignNotes
+#
+# last modified:   07-Oct-2004  Thu  14:58
+#
+# Copyright (c) 2004 SoftJin Infotech Private Ltd.
+# See the accompanying file LICENSE.
+
+
+sizeof int
+
+    Although the C++ standard guarantees only that ints have at least 16
+    bits, it is a nuisance to have to work with this assumption.  For
+    example, to print a 32-bit number using printf() we cannot just use
+    "%d"; instead we must use one of the ugly macros from <inttypes.h>,
+    e.g., PRId32.  This is a pain.  Since modern systems of the sort to
+    which we might want to port the GDSII software have at least 32-bit
+    ints, that is what I will assume.  I also assume that negative
+    integers are represented in 2's-complement form.
+
+
+
+internal representation of double
+
+    The code to convert between doubles and floating point numbers in
+    the GDSII Stream and Oasis formats assume that the internal
+    representation of a double is a double-precision IEEE 754
+    floating-point number.  This too seems universal on the sort of
+    computers on which we might want to run this software.  Removing
+    this assumption would be an unnecessary pain and would slow down the
+    code.
+
+
+
+stdio vs. iostream
+
+    The code uses stdio instead of iostream because stdio is about
+    thrice as fast for writes.  Below is the result of a simple test.
+    --------------------------------------------------
+    Pentium4 2.4GHz, 533 MHz FSB motherboard, 512 MB RAM
+    Mirrored (software RAID-1) Seagate ST340014A 7200 RPM disks
+    on ATA-100 channels.
+    Linux 2.4.20 kernel on RedHat 9, glibc 2.3.2-27.9, gcc 3.2.2
+
+    Time to write 10,000,000 integers to a file using
+    C++ iostreams and C stdio.  Code compiled with -O2.
+
+    C++ code:
+        ofstream  ofs(argv[1], ios::binary|ios::trunc);
+        for (count = 10000000;  --count >= 0;  )
+            ofs << count << '\n';
+
+    C code:
+        fp = fopen(argv[1], "w");
+        for (count = 10000000;  --count >= 0;  )
+            fprintf(fp, "%d\n", count);
+
+    Output file size: 78,888,890 bytes
+
+    C++ times           C times
+
+    real    0m14.282s   real    0m4.341s
+    user    0m13.750s   user    0m3.900s
+    sys     0m0.440s    sys     0m0.370s
+
+
+    C++ times without the newlines (just: ofs << count)
+
+    real    0m12.157s
+    user    0m11.790s
+    sys     0m0.290s
+
+    The timings did not change significantly for these variations:
+      - C code with 128KB file buffer
+      - compiling both with -march=i686
+      - compiling the iostream version with -fno-exceptions
+    --------------------------------------------------
+
+
+
+Exceptions
+
+    All classes throw a runtime_error exception when an unrecoverable
+    error occurs.  runtime_error is derived from exception and is
+    declared in <stdexcept>.  The string passed to runtime_error's
+    constructor, which is returned by its what() method, is a message
+    describing the error.  The application is expected to display this
+    message by writing it to stderr (for command-line programs) or
+    displaying it in a dialog box (for GUI programs).
+
+    Originally I had lots of exception classes for different kinds of
+    errors and for errors in different classes, the way the C++ books do
+    it.  But for all these exceptions the application has only one
+    reasonable action: abort the top-level task (the parsing or
+    whatever) and display the error message in a dialog box.  If all
+    types of exceptions lead to the same action then there is no reason
+    to have different types of exceptions.
+
+    Exception specifications (throw lists) are not given for any
+    function.  The consensus among experts seems to be that they are
+    dangerous and not worth the trouble.
+
+
+
+The parameter `const GdsPointList& points' of OasisBuilder::beginAref()
+
+    The point list for AREFs is not significant in itself.  It is only
+    an indirect way of specifying the array's (x,y) position and its
+    x-spacing and y-spacing.  It would make more sense for the parser to
+    pass those as arguments to beginAref() than the raw point list.
+    However, we want to be able to regenerate the input exactly from the
+    arguments passed to the builder methods, and the specification is
+    vague about what exactly the XY record for AREFs is allowed to have.
+    (For example, can the inter-column spacing be negative?  Can it be
+    zero if the array has only one column?)  It is safer to pass the XY
+    record's contents as is and let the caller interpret it.
+
+
+
+<inttypes.h>
+
+    The files that need the types like int32_t that are defined in
+    <stdint.h> include <inttypes.h> instead, even though though they
+    don't need the #defines in <inttypes.h>.  This is because Solaris
+    has only <inttypes.h> and not <stdint.h>.  The C standard says the
+    <inttypes.h> #includes <stdint.h>.
+
+
+
+How strict should the parser be?
+
+    Many tools that generate GDSII files do not adhere strictly to the
+    spec.  For example, they may use structure names that contain
+    invalid characters or have a GENERATIONS record with the invalid
+    value 0 (the valid range is 2..99).  So how strictly do we enforce
+    the GDSII specifications?
+
+    We cannot afford to be too strict because then the parser will fail
+    on many real GDSII files.  But we cannot be too lenient either,
+    because upper layers may be depending on the parser to give them
+    only constructs that are valid according to the spec.  The policy I
+    have adopted is to enforce the spec rigidly except where a real-life
+    GDSII file exists that violates it.

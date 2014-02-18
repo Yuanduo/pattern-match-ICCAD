@@ -1,0 +1,1634 @@
+# conv/test.ascgds -- test input for GDSII -> OASIS conversion
+#
+# last modified:   24-Oct-2005  Mon  19:04
+#
+# Copyright (c) 2004 SoftJin Infotech Private Ltd.
+# See the accompanying file LICENSE.
+#
+# To make an OASIS file out of this,
+# ascii2gds test.ascgds /dev/stdout | gds2oasis /dev/stdin test.oas
+
+header 3
+bgnlib 104 8 1 12 0 0  104 8 1 12 0 0
+libname "test.gds"
+units 0.001 1e-09
+
+# OASIS output is shown in this file only to give some idea of what the
+# input will be converted to.  Improvements to the conversion code may
+# change the output.
+
+#-----------------------------------------------------------------------
+# RECTANGLE 0x7f  layer 1  datatype 0  width 200  height 300  x 300  y 200
+#         rep 10 3 (1000,1000) (1000,1000) (1000,1000) (3000,3000)
+# RECTANGLE 0x06  datatype 2  rep 10 0 (1000,1000)
+# PROPERTY 0x27  refnum 0  standard  values 2 8 1 14 1
+# PROPERTY 0x21  standard  values 2 8 2 14 0
+# RECTANGLE 0x00
+# PROPERTY 0x21  standard  values 2 8 1 14 1
+# PROPERTY 0x21  standard  values 2 8 2 14 2
+# RECTANGLE 0x02  datatype 5
+# RECTANGLE 0x20  height 400
+# RECTANGLE 0x60  width 400  height 300
+# RECTANGLE 0x5b  layer 8  datatype 0  width 200  x 4300  y 4200
+#-----------------------------------------------------------------------
+
+bgnstr 104 8 1 12 0 0  104 8 1 12 0 0
+    strname "rect_cell"
+
+    ##  Four copies of a rectangle width=200  height=300, two using
+    ##  BOUNDARY and two using BOX.  The last boundary in this structure
+    ##  is the fifth copy.  For these four, try different permutations
+    ##  of the vertices.
+    ##
+    boundary
+        layer 1
+        datatype 0
+        xy   5   500 500  300 500  300 200  500 200  500 500
+        endel
+    box
+        layer 1
+        boxtype 0
+        xy   5   1300 1200  1500 1200  1500 1500  1300 1500  1300 1200
+        endel
+    boundary
+        layer 1
+        datatype 0
+        xy   5   2500 2200  2500 2500  2300 2500  2300 2200  2500 2200
+        endel
+    box
+        layer 1
+        boxtype 0
+        xy   5   3300 3500  3500 3500  3500 3200  3300 3200  3300 3500
+        endel
+
+    ##  Same rectangle, but now in layer 8.  It should not get merged
+    ##  with the previous one.
+    ##
+    boundary
+        layer 8
+        datatype 0
+        xy   5   4500 4500  4300 4500  4300 4200  4500 4200  4500 4500
+        endel
+
+    ##  Two copies of a rectangle, but now with two properties each.
+    ##  Positions:  (1000,1000)
+    ##  This is back in layer 1, so this rectangle's record should come
+    ##  before the previous one.
+    ##
+    boundary
+        layer 1
+        datatype 2
+        xy   5   500 500  300 500  300 200  500 200  500 500
+        propattr 2
+        propvalue "boundary-prop2"
+        propattr 1
+        propvalue "boundary-prop1"
+        endel
+    box
+        layer 1
+        boxtype 2
+        xy   5   1500 1500  1300 1500  1300 1200  1500 1200  1500 1500
+        propattr 1
+        propvalue "boundary-prop1"
+        propattr 2
+        propvalue "boundary-prop2"
+        endel
+
+    ##  This rectangle has the same fields as the previous one, but the
+    ##  second property is different.  So there should be a new RECTANGLE
+    ##  record with just the info-byte and the properties.
+    ##
+    boundary
+        layer 1
+        datatype 2
+        xy   5   500 500  300 500  300 200  500 200  500 500
+        propattr 1
+        propvalue "boundary-prop1"
+        propattr 2
+        propvalue "boundary-prop2-2"
+        endel
+
+    ##  This rectangle should get merged with the first four.
+    ##
+    boundary
+        layer 1
+        datatype 0
+        xy   5   6500 6500  6300 6500  6300 6200  6500 6200  6500 6500
+        endel
+
+    ##  This one should not because the datatype is different.
+    ##
+    boundary
+        layer 1
+        datatype 5
+        xy   5   500 500  300 500  300 200  500 200  500 500
+        endel
+
+    ##  This one should not because the height is 400 instead of 300.
+    ##
+    boundary
+        layer 1
+        datatype 5
+        xy   5   500 600  300 600  300 200  500 200  500 600
+        endel
+
+    ##  And this one has a width of 400 instead of 200.
+    ##
+    boundary
+        layer 1
+        datatype 5
+        xy   5   700 500  300 500  300 200  700 200  700 500
+        endel
+
+    endstr
+
+
+#-----------------------------------------------------------------------
+# TRAPEZOID 0x6f  layer 0  datatype 1  width 150  height 50  horizontal
+#         delta_a -50  delta_b 50  y 100  rep 10 6 (1000,1000) (1000,1000)
+#         (1000,1000) (1000,1000) (1000,1000) (1000,1000) (1000,1000)
+# TRAPEZOID 0xfc  width 50  height 150  vertical  delta_a 50  delta_b -50  x
+#         1100  y 1000  rep 0
+# TRAPEZOID_B 0x80  vertical  delta_b -50
+# TRAPEZOID_A 0x80  vertical  delta_a 50
+# TRAPEZOID 0x82  datatype 8  vertical  delta_a 50  delta_b -50
+# TRAPEZOID 0x82  datatype 1  vertical  delta_a 50  delta_b -50
+# PROPERTY 0x27  refnum 0  standard  values 2 8 1 14 3
+# TRAPEZOID 0x81  layer 5  vertical  delta_a 50  delta_b -50
+# TRAPEZOID 0x84  vertical  delta_a 50  delta_b -50  rep 10 0 (1000,1000)
+# PROPERTY_REPEAT
+# PROPERTY 0x21  standard  values 2 8 2 14 4
+# PROPERTY 0x21  standard  values 2 8 3 14 5
+# TRAPEZOID 0x80  vertical  delta_a 50  delta_b -50
+# PROPERTY_REPEAT
+# TRAPEZOID 0x78  width 300  height 100  horizontal  delta_a 100  delta_b 200
+#         x -100  y -100
+# TRAPEZOID 0x78  width 800  height 50  horizontal  delta_a -100  delta_b -500
+#         x -300  y -50
+# TRAPEZOID 0xf8  width 600  height 500  vertical  delta_a 200  delta_b 200
+#         x -500  y -300
+# TRAPEZOID 0xf8  width 200  height 201  vertical  delta_a -199  delta_b -1
+#         x 100  y 0
+#-----------------------------------------------------------------------
+
+bgnstr 104 8 1 12 0 0  104 8 1 12 0 0
+    strname "trapezoid_cell"
+
+    ##  Specify the same horizontal trapezoid with 8 different permutations
+    ##  of the vertices.
+    ##
+    boundary
+        layer 0
+        datatype 1
+        xy  5   100 100   150 150   0 150   50 100  100 100
+        endel
+
+    boundary
+        layer 0
+        datatype 1
+        xy  5   1150 1150   1000 1150   1050 1100  1100 1100  1150 1150
+        endel
+
+    boundary
+        layer 0
+        datatype 1
+        xy  5   2000 2150   2050 2100  2100 2100   2150 2150   2000 2150
+        endel
+
+    boundary
+        layer 0
+        datatype 1
+        xy  5   3050 3100   3100 3100   3150 3150   3000 3150   3050 3100
+        endel
+
+    boundary
+        layer 0
+        datatype 1
+        xy  5   4050 4100   4000 4150   4150 4150   4100 4100   4050 4100
+        endel
+
+    boundary
+        layer 0
+        datatype 1
+        xy  5   5000 5150   5150 5150   5100 5100   5050 5100   5000 5150
+        endel
+
+    boundary
+        layer 0
+        datatype 1
+        xy  5   6150 6150   6100 6100   6050 6100   6000 6150   6150 6150
+        endel
+
+    boundary
+        layer 0
+        datatype 1
+        xy  5   7100 7100   7050 7100   7000 7150   7150 7150   7100 7100
+        endel
+
+    ##  Now 8 permutations of a vertical trapezoid.  The repetition
+    ##  is the same, so the record should have rep 0.
+    ##
+    boundary
+        layer 0
+        datatype 1
+        xy  5   1150 1000   1150 1150   1100 1100   1100 1050   1150 1000
+        endel
+
+    boundary
+        layer 0
+        datatype 1
+        xy  5   2150 2150   2100 2100   2100 2050   2150 2000   2150 2150
+        endel
+
+    boundary
+        layer 0
+        datatype 1
+        xy  5   3100 3100   3100 3050   3150 3000   3150 3150   3100 3100
+        endel
+
+    boundary
+        layer 0
+        datatype 1
+        xy  5   4100 4050   4150 4000   4150 4150   4100 4100   4100 4050
+        endel
+
+    boundary
+        layer 0
+        datatype 1
+        xy  5   5100 5050   5100 5100   5150 5150   5150 5000   5100 5050
+        endel
+
+    boundary
+        layer 0
+        datatype 1
+        xy  5   6100 6100   6150 6150   6150 6000   6100 6050  6100 6100
+        endel
+
+    boundary
+        layer 0
+        datatype 1
+        xy  5   7150 7150   7150 7000   7100 7050  7100 7100   7150 7150
+        endel
+
+    boundary
+        layer 0
+        datatype 1
+        xy  5   8150 8000   8100 8050  8100 8100   8150 8150   8150 8000
+        endel
+
+    ##  Change various fields of the trapezoid and verify that the result
+    ##  does not get merged with the previous trapezoid.
+
+    ##  Change delta_a to 0.  Should generate a TRAPEZOID_B record.
+    boundary
+        layer 0
+        datatype 1
+        xy  5   1150 1000   1150 1150   1100 1100   1100 1000   1150 1000
+        endel
+
+    ##  Change delta_b to 0.  Should generate a TRAPEZOID_A record.
+    boundary
+        layer 0
+        datatype 1
+        xy  5   1150 1000   1150 1150   1100 1150   1100 1050   1150 1000
+        endel
+
+    ##  Change datatype
+    boundary
+        layer 0
+        datatype 8
+        xy  5   1150 1000   1150 1150   1100 1100   1100 1050   1150 1000
+        endel
+
+    ##  Add property
+    boundary
+        layer 0
+        datatype 1
+        xy  5   1150 1000   1150 1150   1100 1100   1100 1050   1150 1000
+        propattr 1
+        propvalue "trap-property-1"
+        endel
+
+    ##  Change layer
+    boundary
+        layer 5
+        datatype 1
+        xy  5   1150 1000   1150 1150   1100 1100   1100 1050   1150 1000
+        endel
+
+    ##  Now verify that trapezoids get merged even with properties.
+
+    boundary
+        layer 5
+        datatype 1
+        xy  5   1150 1000   1150 1150   1100 1100   1100 1050   1150 1000
+        propattr 1
+        propvalue "trap-property-1"
+        propattr 2
+        propvalue "trap-property-2"
+        propattr 3
+        propvalue "trap-property-3"
+        endel
+
+    boundary
+        layer 5
+        datatype 1
+        xy  5   2150 2000   2150 2150   2100 2100   2100 2050   2150 2000
+        propattr 3
+        propvalue "trap-property-3"
+        propattr 2
+        propvalue "trap-property-2"
+        propattr 1
+        propvalue "trap-property-1"
+        endel
+
+    ##  New trapezoid with all fields repeated, and PROPERTY_REPEAT.
+    boundary
+        layer 5
+        datatype 1
+        xy  5   1150 1000   1150 1150   1100 1100   1100 1050   1150 1000
+        propattr 3
+        propvalue "trap-property-3"
+        endel
+
+    ##  Test parallelogram-like trapezoids (same sign for both deltas)
+
+    ##  horiz  width 300  height 100  delta_a 100  delta_b 200  x -100  y -100
+    boundary
+        layer 5
+        datatype 1
+        xy  5   -100 -100  0 -100  200 0  0 0  -100 -100
+        endel
+
+    ##  horiz  width 800  height 50  delta_a -100  delta_b -500  x -300  y -50
+    boundary
+        layer 5
+        datatype 1
+        xy  5   0 0   -300 0   -200 -50   500 -50   0 0
+        endel
+
+    ##  vert  width 600  height 500  delta_a 200  delta_b 200  x -500  y -300
+    boundary
+        layer 5
+        datatype 1
+        xy  5   -500 200   -500 -100   100 -300   100 0   -500 200
+        endel
+
+    ##  vert  width 200  height 201  delta_a -199  delta_b -1  x 100  y 0
+    boundary
+        layer 5
+        datatype 1
+        xy  5   100 200   300 201   300  199   100 0   100 200
+        endel
+
+    endstr
+
+
+#-----------------------------------------------------------------------
+# Trapezoids with two or more coincident points
+
+#RECTANGLE 0xdb  layer 31  datatype 1  width 0  x 5  y 5
+#RECTANGLE 0x59  layer 34  width 5  x 0  y 0
+#TRAPEZOID 0xfb  layer 1  datatype 2  vertical  width 150  height 450
+#        delta_a 100  delta_b -350  x -100  y -300
+#TRAPEZOID 0xf9  layer 2  vertical  width 50  height 100  delta_a -70
+#        delta_b 30  x -50  y 0
+#TRAPEZOID 0x79  layer 3  horizontal  width 130  height 50  delta_a 80
+#        delta_b -50  x -80  y -50
+#TRAPEZOID 0x51  layer 4  horizontal  width 100  delta_a -60  delta_b 40
+#        x 0
+#TRAPEZOID_B 0x6b  layer 16  datatype 1  horizontal  width 5  height 5
+#        delta_b -5  y 0
+#TRAPEZOID_B 0x01  layer 17  horizontal  delta_b 5
+#TRAPEZOID_A 0x01  layer 18  horizontal  delta_a 5
+#TRAPEZOID_A 0x01  layer 19  horizontal  delta_a -5
+#TRAPEZOID 0x41  layer 20  horizontal  width 10  delta_a 5  delta_b -5
+#TRAPEZOID 0x01  layer 21  horizontal  delta_a -5  delta_b 5
+#TRAPEZOID 0xa1  layer 22  vertical  height 20  delta_a -10  delta_b 10
+#TRAPEZOID 0x81  layer 23  vertical  delta_a 10  delta_b -10
+#TRAPEZOID 0xe1  layer 32  vertical  width 0  height 5  delta_a -5
+#        delta_b -5
+#TRAPEZOID_B 0x81  layer 33  vertical  delta_b -5
+#TRAPEZOID_A 0x61  layer 35  horizontal  width 5  height 0  delta_a -5
+#-----------------------------------------------------------------------
+
+bgnstr 104 8 1 12 0 0  104 8 1 12 0 0
+    strname "degenerate_trapezoid_cell"
+
+    ##  vertical trapezoid with two vertices coinciding
+    ##  width 150  height 450  delta_a 100  delta_b -350  x -100  y -300
+    boundary
+        layer 1
+        datatype 2
+        xy  5   -100 -200   50 -300   50 150   -100 -200   -100 -200
+        endel
+
+    ##  vertical trapezoid with two vertices coinciding
+    ##  width 50  height 100  delta_a -70  delta_b 30  x -50  y 0
+    boundary
+        layer 2
+        datatype 2
+        xy  5   -50 0   -50  100   0 70   0 70   -50 0
+        endel
+
+    ##  horizontal trapezoid with two vertices coinciding
+    ##  width 130  height 50  delta_a 80  delta_b -50  x -80  y -50
+    boundary
+        layer 3
+        datatype 2
+        xy  5   0 0   0 0   50 -50   -80 -50   0 0
+        endel
+
+    ##  horizontal trapezoid with two vertices coinciding
+    ##  width 100  height 50  delta_a -60  delta_b 40  x 0  y -50
+    boundary
+        layer 4
+        datatype 2
+        xy  5   0 0   60 -50   60 -50   100 0   0 0
+        endel
+
+    ##  ------------------------------
+    ##  CTrapezoids
+
+    ##  ctrapezoid type 16
+    boundary
+        layer 16
+        datatype 1
+        xy  5   0 0  5 0  0 5  0 5  0 0
+        endel
+
+    ##  ctrapezoid type 17
+    boundary
+        layer 17
+        datatype 1
+        xy  5   0 0  0 0  5 5  0 5  0 0
+        endel
+
+    ##  ctrapezoid type 18
+    boundary
+        layer 18
+        datatype 1
+        xy  5   0 0  5 0  5 5  5 5  0 0
+        endel
+
+    ##  ctrapezoid type 19
+    boundary
+        layer 19
+        datatype 1
+        xy  5   5 0  5 0  5 5  0 5  5 0
+        endel
+
+    ##  ctrapezoid type 20
+    boundary
+        layer 20
+        datatype 1
+        xy  5   0 0  10 0  5 5  5 5  0 0
+        endel
+
+    ##  ctrapezoid type 21
+    boundary
+        layer 21
+        datatype 1
+        xy  5   5 0  5 0  10 5  0 5  5 0
+        endel
+
+    ##  ctrapezoid type 22
+    boundary
+        layer 22
+        datatype 1
+        xy  5   0 0  10 10  10 10  0 20  0 0
+        endel
+
+    ##  ctrapezoid type 23
+    boundary
+        layer 23
+        datatype 1
+        xy  5   0 10  10 0  10 20  0 10  0 10
+        endel
+
+    ##  ------------------------------
+    ##  Some really degenerate trapezoids.
+    ##  Many of these become RECTANGLEs.
+
+    ##  Single point
+    boundary
+        layer 31
+        datatype 1
+        xy  5   5 5  5 5  5 5  5 5  5 5
+        endel
+
+    ##  Vertical line
+    boundary
+        layer 32
+        datatype 1
+        xy  5   0 0  0 0  0 5  0 5  0 0
+        endel
+
+    ##  Another vertical line
+    boundary
+        layer 33
+        datatype 1
+        xy  5   0 0  0 0  0 0  0 5  0 0
+        endel
+
+    ##  Horizontal line
+    boundary
+        layer 34
+        datatype 1
+        xy  5   0 0  0 0  5 0  5 0  0 0
+        endel
+
+    ##  Another horizontal line
+    boundary
+        layer 35
+        datatype 1
+        xy  5   0 0  5 0  5 0  5 0  0 0
+        endel
+
+    endstr
+
+
+#-----------------------------------------------------------------------
+# POLYGON 0x3f  layer 1  datatype 0  x 1100  y 1100
+#        ptlist 0 4 -100 -100 150 200  rep 10 1 (1000,1000) (1000,1000)
+# POLYGON 0x34  x 1000  ptlist 1 4 -100 150 200 -50  rep 0
+# POLYGON 0x24  ptlist 2 6 s:100 e:150 n:200 w:50 s:0 s:100
+#         rep 10 0 (2000,2000)
+# POLYGON 0x24  ptlist 2 6 s:100 e:150 n:100 n:100 w:50 s:100  rep 0
+# POLYGON 0x3c  x -100  y -300  ptlist 3 3 nw:100 sw:100 se:100
+#         rep 10 0 (200,300)
+# POLYGON 0x38  x 0  y 0  ptlist 3 5 ne:100 se:100 sw:200 nw:200 ne:100
+# PROPERTY 0x27  refnum 0  standard  values 2 8 127 14 6
+# POLYGON 0x00
+# POLYGON 0x3c  x -1000  y 1234
+#         ptlist 4 6 (3345,622) (-12221,-5277) (4876,9421) (5001,-5999)
+#                    (-1,-1) (1234567,-1234567)
+#         rep 10 0 (0,0)
+# POLYGON 0x3c  x 100  y 0  ptlist 3 3 nw:100 sw:100 se:100
+#         rep 10 0 (1000,1000)
+# PROPERTY 0x21  standard  values 2 8 1 14 6
+# PROPERTY 0x21  standard  values 2 8 2 14 7
+# PROPERTY 0x21  standard  values 2 8 3 14 8
+# POLYGON 0x18  x 1100  y 1000
+# PROPERTY 0x21  standard  values 2 8 1 14 6
+# PROPERTY 0x21  standard  values 2 8 3 14 8
+# PROPERTY 0x21  standard  values 2 8 4 14 9
+# POLYGON 0x01  layer 2
+# POLYGON 0x02  datatype 5
+# POLYGON 0x01  layer 10
+# POLYGON 0x3b  layer 15  datatype 3  x 0  y 0  ptlist 3 3 e:100 nw:100 e:100
+# POLYGON 0x20  ptlist 3 3 n:100 se:100 n:100
+#-----------------------------------------------------------------------
+
+bgnstr 104 8 1 12 0 0  104 8 1 12 0 0
+    strname "polygon_cell"
+
+    ##  Three each of point-list types ManhattanHorizFirst,
+    ##  ManhattanVertFirst, Manhattan, Octangular, Arbitrary.
+
+    ##  ManhattanHorizFirst
+    boundary
+        layer 1
+        datatype 0
+        xy  7   1100 1100   1000 1100   1000 1000   1150 1000
+                1150 1200   1100 1200   1100 1100
+        endel
+    boundary
+        layer 1
+        datatype 0
+        xy  7   3100 3100   3000 3100   3000 3000   3150 3000
+                3150 3200   3100 3200   3100 3100
+        endel
+    boundary
+        layer 1
+        datatype 0
+        xy  7   2100 2100   2000 2100   2000 2000   2150 2000
+                2150 2200   2100 2200   2100 2100
+        endel
+
+    ##  ManhattanVertFirst
+    ##  Same set of points but shifted by one.
+    boundary
+        layer 1
+        datatype 0
+        xy  7   1000 1100   1000 1000   1150 1000   1150 1200
+                1100 1200   1100 1100   1000 1100
+        endel
+    boundary
+        layer 1
+        datatype 0
+        xy  7   3000 3100   3000 3000   3150 3000   3150 3200
+                3100 3200   3100 3100   3000 3100
+        endel
+    boundary
+        layer 1
+        datatype 0
+        xy  7   2000 2100   2000 2000   2150 2000   2150 2200
+                2100 2200   2100 2100   2000 2100
+        endel
+
+    ##  Manhattan
+    ##  First try with adjacent vertices coinciding.
+    boundary
+        layer 1
+        datatype 0
+        xy  8   1000 1100   1000 1000   1150 1000   1150 1200
+                1100 1200   1100 1200   1100 1100   1000 1100
+        endel
+    boundary
+        layer 1
+        datatype 0
+        xy  8   3000 3100   3000 3000   3150 3000   3150 3200
+                3100 3200   3100 3200   3100 3100   3000 3100
+        endel
+
+    ##  Manhattan
+    ##  Then try with adjacent collinear edges.
+    boundary
+        layer 1
+        datatype 0
+        xy  8   1000 1100   1000 1000   1150 1000   1150 1100   1150 1200
+                1100 1200   1100 1100   1000 1100
+        endel
+    boundary
+        layer 1
+        datatype 0
+        xy  8   3000 3100   3000 3000   3150 3000   3150 3100   3150 3200
+                3100 3200   3100 3100   3000 3100
+        endel
+
+    ##  Octangular
+    boundary
+        layer 1
+        datatype 0
+        xy  5   100 0   0 100   -100 0   0 -100  100 0
+        endel
+    boundary
+        layer 1
+        datatype 0
+        xy  5   -100 -300   -200 -200   -300 -300   -200 -400  -100 -300
+        endel
+
+    ## Also octangular, but with and without a property
+    boundary
+        layer 1
+        datatype 0
+        xy  7   0 0   100 100   200 0   0 -200   -200 0   -100 100   0 0
+        propattr 127
+        propvalue "polygon-prop-1"
+        endel
+    boundary
+        layer 1
+        datatype 0
+        xy  7   0 0   100 100   200 0   0 -200   -200 0   -100 100   0 0
+        endel
+
+    ##  Arbitrary
+    boundary
+        layer 1
+        datatype 0
+        xy  8   -1000 1234  2345 1856   -9876 -3421  -5000 6000
+                1 1  0 0   1234567 -1234567  -1000 1234
+        endel
+    boundary
+        layer 1
+        datatype 0
+        xy  8   -1000 1234  2345 1856   -9876 -3421  -5000 6000
+                1 1  0 0   1234567 -1234567  -1000 1234
+        endel
+
+    ##  Try properties.  The first two are merged; the third is separate.
+    boundary
+        layer 1
+        datatype 0
+        xy  5   100 0   0 100   -100 0   0 -100  100 0
+        propattr 2
+        propvalue "polygon-prop-2"
+        propattr 1
+        propvalue "polygon-prop-1"
+        propattr 3
+        propvalue "polygon-prop-3"
+        endel
+    boundary
+        layer 1
+        datatype 0
+        xy  5   1100 1000   1000 1100   900 1000   1000 900  1100 1000
+        propattr 3
+        propvalue "polygon-prop-3"
+        propattr 1
+        propvalue "polygon-prop-1"
+        propattr 2
+        propvalue "polygon-prop-2"
+        endel
+    boundary
+        layer 1
+        datatype 0
+        xy  5   1100 1000   1000 1100   900 1000   1000 900  1100 1000
+        propattr 3
+        propvalue "polygon-prop-3"
+        propattr 1
+        propvalue "polygon-prop-1"
+        propattr 4
+        propvalue "polygon-prop-4"
+        endel
+
+    ## The next three are separate.  The second has a different datatype
+    ## and the third has a different layer
+    boundary
+        layer 2
+        datatype 0
+        xy  5   1100 1000   1000 1100   900 1000   1000 900  1100 1000
+        endel
+    boundary
+        layer 2
+        datatype 5
+        xy  5   1100 1000   1000 1100   900 1000   1000 900  1100 1000
+        endel
+    boundary
+        layer 10
+        datatype 5
+        xy  5   1100 1000   1000 1100   900 1000   1000 900  1100 1000
+        endel
+
+    ##  Try quadrilaterals that would be trapezoids if their edges
+    ##  did not cross
+
+    boundary
+        layer 15
+        datatype 3
+        xy  5   0 0   100 0   0 100   100 100   0 0
+        endel
+
+    boundary
+        layer 15
+        datatype 3
+        xy  5   0 0   0 100   100 0   100 100   0 0
+        endel
+
+    ##  Horizontal line.  Ideally this should be converted into a rectangle,
+    ##  but recognizing degenerate cases like this does not seem worthwhile.
+    boundary
+        layer 20
+        datatype 1
+        xy  5   0 0  5 0  0 0  5 0  0 0
+        endel
+
+    ##  Slant line, SW - NE.
+    ##  This and the next are degenerate trapezoids, but here too it
+    ##  is too much trouble to recognize them as such.
+    boundary
+        layer 21
+        datatype 1
+        xy  5   0 0  5 5  0 0  5 5  0 0
+        endel
+
+    ##  Slant line, NW - SE
+    boundary
+        layer 22
+        datatype 1
+        xy  5   0 5  0 5  0 5  5 0  0 5
+        endel
+
+    endstr
+
+
+#-----------------------------------------------------------------------
+# PATH 0xff  layer 1  datatype 0  halfwidth 2  start_extn -3  end_extn -5  x
+#         -1050  y -1050  ptlist 0 4 -50 150 300 -180  rep 10 0 (1000,1000)
+# PATH 0xfc  halfwidth 4  start_extn 0  end_extn 0  x -100  y -100  ptlist 1
+#         1 100  rep 10 0 (100,100)
+# PATH 0xbc  start_extn  halfwidth  end_extn  halfwidth  x -1  y -1  ptlist 3
+#         8 sw:100 s:100 se:100 e:100 ne:100 n:100 nw:100 w:100  rep 10 0 (1,1)
+# PATH 0xfe  datatype 3  halfwidth 3  start_extn halfwidth  end_extn halfwidth
+#         x 0  y 0  ptlist 4 4 (20,30) (-50,-70) (80,50) (-150,-110)  rep 10
+#         0 (100,100)
+# PROPERTY 0x27  refnum 0  standard  values 2 8 1 14 11
+# PROPERTY 0x21  standard  values 2 8 2 14 12
+# PROPERTY 0x21  standard  values 2 8 3 14 10
+# PATH 0xfb  layer 5  datatype 0  halfwidth 2  start_extn -3  end_extn -5  x
+#         -50  y -50  ptlist 0 4 -50 150 300 -180
+# PATH 0x06  datatype 1
+# PATH 0x40  halfwidth 3
+# PATH 0xc0  halfwidth 2  start_extn  halfwidth  end_extn  halfwidth
+# PATH 0x00
+# PROPERTY_REPEAT
+#-----------------------------------------------------------------------
+
+bgnstr 104 8 1 12 0 0  104 8 1 12 0 0
+    strname "path_cell"
+
+    ## Type 0
+    ##
+    path
+        layer 1
+        datatype 0
+        pathtype 4
+        width 3
+        bgnextn -3
+        endextn -5
+        xy  5  -50 -50   -100 -50   -100 100   200 100   200 -80
+        endel
+    path
+        layer 1
+        datatype 0
+        pathtype 4
+        width 3
+        bgnextn -3
+        endextn -5
+        xy  5  -1050 -1050   -1100 -1050   -1100 -900   -800 -900   -800 -1080
+        endel
+
+    ## Type 1
+    ##
+    path
+        layer 1
+        datatype 0
+        pathtype 0
+        width 8
+        xy  2  0 0  0 100
+        endel
+    path
+        layer 1
+        datatype 0
+        pathtype 0
+        width 8
+        xy  2  -100 -100  -100 0
+        endel
+
+    ##  Type 2
+    ##
+    path
+        layer 1
+        datatype 0
+        pathtype 1
+        width 8
+        xy  9  0    0    -100 -100   -100 -200   0 -300   100 -300
+               200 -200   200 -100    100 0      0 0
+        endel
+    path
+        layer 1
+        datatype 0
+        pathtype 1
+        width 8
+        xy  9  -1  -1    -101 -101  -101 -201   -1 -301   99 -301
+               199 -201   199 -101   99 -1      -1 -1
+        endel
+
+    ##  Type 3
+    ##
+    path
+        layer 1
+        datatype 3
+        pathtype 2
+        width 5
+        xy  5  0 0   20 30   -30 -40   50 10  -100 -100
+        propattr 3
+        propvalue "path-prop-3"
+        propattr 1
+        propvalue "path-prop-1"
+        propattr 2
+        propvalue "path-prop-2"
+        endel
+    path
+        layer 1
+        datatype 3
+        pathtype 2
+        width 5
+        xy  5  100 100   120 130   70 60   150 110   0 0
+        propattr 3
+        propvalue "path-prop-3"
+        propattr 1
+        propvalue "path-prop-1"
+        propattr 2
+        propvalue "path-prop-2"
+        endel
+
+    ##  Now change all fields one by one and make sure none of them
+    ##  get merged with any of the preceding.
+
+    path
+        layer 5
+        datatype 0
+        pathtype 4
+        width 3
+        bgnextn -3
+        endextn -5
+        xy  5  -50 -50   -100 -50   -100 100   200 100   200 -80
+        endel
+    path
+        layer 5
+        datatype 1
+        pathtype 4
+        width 3
+        bgnextn -3
+        endextn -5
+        xy  5  -50 -50   -100 -50   -100 100   200 100   200 -80
+        endel
+    path
+        layer 5
+        datatype 1
+        pathtype 4
+        width -5
+        bgnextn -3
+        endextn -5
+        xy  5  -50 -50   -100 -50   -100 100   200 100   200 -80
+        endel
+    path
+        layer 5
+        datatype 1
+        pathtype 2
+        width 3
+        xy  5  -50 -50   -100 -50   -100 100   200 100   200 -80
+        endel
+    path
+        layer 5
+        datatype 1
+        pathtype 2
+        width 3
+        xy  5  -50 -50   -100 -50   -100 100   200 100   200 -80
+        propattr 3
+        propvalue "path-prop-3"
+        endel
+
+    endstr
+
+
+#-----------------------------------------------------------------------
+# With the -p option, single-segment paths that are horizontal or
+# vertical should be converted into rectangles, unless they have
+# zero width.
+
+# RECTANGLE 0x7b  layer 0  datatype 0  width 300  height 4  x -100  y -102
+# RECTANGLE 0x51  layer 1  width 230  x -310
+# RECTANGLE 0x79  layer 2  width 4  height 330  x -102  y -120
+# RECTANGLE 0x29  layer 3  height 130  y -210
+# RECTANGLE 0x79  layer 4  width 70  height 4  x 120  y 98
+# RECTANGLE 0x51  layer 5  width 0  x 180
+# RECTANGLE 0x79  layer 6  width 4  height 0  x 98  y 180
+# PATH 0xf9  layer 7  halfwidth 5  start_extn 0  end_extn 0  x 100  y 100
+#         ptlist 3 1 ne:100
+# PATH 0x61  layer 8  halfwidth 0  ptlist 1 1 100
+#-----------------------------------------------------------------------
+
+bgnstr 104 8 1 12 0 0  104 8 1 12 0 0
+    strname "path_rect_cell"
+
+    path
+        layer 0
+        datatype 0
+        pathtype 0
+        width 4
+        xy  2  -100 -100  200 -100      # horizontal path, going right
+        endel
+    path
+        layer 1
+        datatype 0
+        pathtype 4
+        width 4
+        bgnextn 20
+        endextn 10
+        xy  2  -100 -100  -300 -100     # horizontal path, going left
+        endel
+    path
+        layer 2
+        datatype 0
+        pathtype 4
+        width 4
+        bgnextn 20
+        endextn 10
+        xy  2  -100 -100  -100 200      # vertical path, going up
+        endel
+    path
+        layer 3
+        datatype 0
+        pathtype 4
+        width 4
+        bgnextn 20
+        endextn 10
+        xy  2  -100 -100  -100 -200     # vertical path, going down
+        endel
+
+    ## Try negative extension
+    path
+        layer 4
+        datatype 0
+        pathtype 4
+        width 4
+        bgnextn -20
+        endextn -10
+        xy  2  100 100   200 100
+        endel
+
+    ## Also negative extension, but the extensions are now large enough
+    ## to make the rectangle empty.
+
+    path
+        layer 5
+        datatype 0
+        pathtype 4
+        width 4
+        bgnextn -80
+        endextn -70
+        xy  2  100 100   200 100        # horizontal
+        endel
+    path
+        layer 6
+        datatype 0
+        pathtype 4
+        width 4
+        bgnextn -80
+        endextn -70
+        xy  2  100 100   100 200        # vertical
+        endel
+
+    ## Neither horizontal nor vertical, so it should remain a path.
+    path
+        layer 7
+        datatype 0
+        pathtype 0
+        width 10
+        xy  2  100 100   200 200
+        endel
+
+    ## Zero width, so this should also remain a path.
+    path
+        layer 8
+        datatype 0
+        pathtype 0
+        width 0
+        xy  2  100 100   100 200
+        endel
+
+    endstr
+
+
+#-----------------------------------------------------------------------
+# PLACEMENT 0xf9  refnum 5  flip  x 200  y 200
+#         rep 10 2 (200,300) (100,0) (100,100)
+# PLACEMENT 0x30  x 0  y 0
+# PLACEMENT_X 0x05  mag 0.3  flip
+# PLACEMENT_X 0x03  angle 45  flip
+# PLACEMENT_X 0x07  mag 1/4  angle 45  flip
+# PLACEMENT 0x39  flip  x 200  y 200  rep 10 0 (1000,1000)
+# PROPERTY 0x27  refnum 0  standard  values 2 8 50 14 14
+# PROPERTY 0x21  standard  values 2 8 100 14 13
+# PLACEMENT_X 0x2e  mag 5  angle 270  x 100  rep 2 2 100
+# PLACEMENT_X 0x0d  mag 10  flip  rep 3 5 50
+# PLACEMENT 0x08  rep 9 3 (-100,0)
+# PLACEMENT 0x08  rep 9 5 (0,-50)
+# PLACEMENT 0x08  rep 9 3 (-100,-50)
+# PLACEMENT 0x0c  angle 180  rep 9 5 (100,50)
+# PLACEMENT 0x08  rep 1 2 1 100 50
+# PLACEMENT 0x08  rep 8 2 5 (-20,30) (-30,-40)
+#-----------------------------------------------------------------------
+
+bgnstr 104 8 1 12 0 0  104 8 1 12 0 0
+    strname "placement_cell"
+
+    ##  SREFs
+
+    ##  All these should get merged
+    sref
+        sname "ext_cell_sref"
+        strans 0x8000
+        xy  1  200 200
+        endel
+    sref
+        sname "ext_cell_sref"
+        strans 0x8002
+        xy  1  400 500
+        endel
+    sref
+        sname "ext_cell_sref"
+        strans 0x8004
+        mag 1.0
+        xy  1  500 500
+        endel
+    sref
+        sname "ext_cell_sref"
+        strans 0x8006
+        angle 0
+        xy  1  600 600
+        endel
+
+    ##  All these are different
+    sref
+        sname "ext_cell_sref"
+        xy  1  0 0
+        endel
+    sref
+        sname "ext_cell_sref"
+        strans 0x8000
+        mag 0.3
+        xy  1  0 0
+        endel
+    sref
+        sname "ext_cell_sref"
+        strans 0x8000
+        angle 45
+        xy  1  0 0
+        endel
+    sref
+        sname "ext_cell_sref"
+        strans 0x8000
+        mag 0.25
+        angle 45
+        xy  1  0 0
+        endel
+
+    ## These two should get merged
+    sref
+        sname "ext_cell_sref"
+        strans 0x8000
+        xy  1  200 200
+        propattr 100
+        propvalue "sref-prop-100"
+        propattr 50
+        propvalue "sref-prop-50"
+        endel
+    sref
+        sname "ext_cell_sref"
+        strans 0x8000
+        xy  1  1200 1200
+        propattr 50
+        propvalue "sref-prop-50"
+        propattr 100
+        propvalue "sref-prop-100"
+        endel
+
+
+    ##  AREFs
+
+    ## This is an SREF in disguise
+    aref
+        sname "ext_cell_aref"
+        strans 0
+        mag 9
+        angle 42
+        colrow 1 1
+        xy  3  100 200  500 200  100 550        # only first point used
+        endel
+
+    ## UniformX  xdimen = 2, xspace = 100
+    aref
+        sname "ext_cell_aref"
+        strans 0
+        mag 5
+        angle 270
+        colrow 4 1
+        xy  3  100 200  500 200  100 550        # third point is ignored
+        endel
+
+    ## UniformY  ydimen = 5, yspace = 50
+    aref
+        sname "ext_cell_aref"
+        strans 0x8000
+        mag 10
+        colrow 1 7
+        xy  3  100 200  500 200  100 550        # second point is ignored
+        endel
+
+    ## Diagonal  dimen = 3, delta = (-100, 0)
+    ## It is not UniformX because the spacing is negative.
+    aref
+        sname "ext_cell_aref"
+        colrow 5 1
+        xy  3  100 200  -400 200  800 550       # third point is ignored
+        endel
+
+    ## Diagonal  dimen = 5, delta = (0, -50)
+    ## It is not UniformY because the spacing is negative.
+    aref
+        sname "ext_cell_aref"
+        colrow 1 7
+        xy  3  100 200  500 200  100 -150       # second point is ignored
+        endel
+
+    ## Diagonal  dimen = 3, delta = (-100, -50)
+    aref
+        sname "ext_cell_aref"
+        colrow 5 1
+        xy  3  100 200  -400 -50  800 550       # third point is ignored
+        endel
+
+    ## Diagonal  dimen = 5, delta = (100, 50)
+    aref
+        sname "ext_cell_aref"
+        strans 0
+        angle 180
+        colrow 1 7
+        xy  3  100 200  500 200  800 550        # second point is ignored
+        endel
+
+    ## Matrix  xdimen=2, ydimen=1, xspace=100, yspace=50
+    aref
+        sname "ext_cell_aref"
+        colrow 4 3
+        xy  3  100 200  499 200  100 351
+        endel
+
+    ## TiltedMatrix, ndisp = (-20, 30), mdisp = (-30, -40)
+    aref
+        sname "ext_cell_aref"
+        colrow 4 7
+        xy  3  100 200  20 320   -110 -80
+        endel
+
+    endstr
+
+#-----------------------------------------------------------------------
+
+bgnstr 104 8 1 12 0 0  104 8 1 12 0 0
+    strname "node_cell"
+
+    ##  This should be ignored with a warning
+    node
+        layer 10
+        nodetype 20
+        xy 1  0 0
+        propattr 10
+        propvalue "foobar"
+        endel
+
+    endstr
+
+#-----------------------------------------------------------------------
+
+bgnstr 104 8 1 12 0 0  104 8 1 12 0 0
+    strname "text_cell"
+
+    ## First check untransformed texts
+
+    ## These two should be merged
+    text
+        layer 0
+        texttype 1
+        presentation 0x3a
+        pathtype 0
+        width 5
+        xy 1 100 200
+        string "normal text"
+        propattr 22
+        propvalue "text-prop-22"
+        propattr 33
+        propvalue "text-prop-33"
+        endel
+    text
+        layer 0
+        texttype 1
+        presentation 0x3a
+        pathtype 0
+        width 5
+        xy 1 -200 -100
+        string "normal text"
+        propattr 33
+        propvalue "text-prop-33"
+        propattr 22
+        propvalue "text-prop-22"
+        endel
+
+    ## All these are separate.  Each changes one field.
+
+    text                        # no properties
+        layer 0
+        texttype 1
+        presentation 0x3a
+        pathtype 0
+        width 5
+        xy 1 -200 -100
+        string "normal text"
+        endel
+    text
+        layer 0
+        texttype 2              # <------
+        presentation 0x3a
+        pathtype 0
+        width 5
+        xy 1 -200 -100
+        string "normal text"
+        endel
+    text
+        layer 0
+        texttype 1
+        presentation 0x32       # <------
+        pathtype 0
+        width 5
+        xy 1 -200 -100
+        string "normal text"
+        endel
+    text
+        layer 0
+        texttype 1
+        presentation 0x3a
+        pathtype 1              # <------
+        width 5
+        xy 1 -200 -100
+        string "normal text"
+        endel
+    text
+        layer 0
+        texttype 1
+        presentation 0x3a
+        pathtype 0
+        width 10                # <------
+        xy 1 -200 -100
+        string "normal text"
+        endel
+    text
+        layer 0
+        texttype 1
+        presentation 0x3a
+        pathtype 0
+        width 5
+        xy 1 -200 -100
+        string "normal text-2"  # <------
+        endel
+    text                        # no presentation
+        layer 0
+        texttype 1
+        xy 1 -200 -100
+        string "normal text"
+        endel
+    text
+        layer 88                # <------
+        texttype 1
+        xy 1 -200 -100
+        string "normal text"
+        endel
+
+    ##  Transformed texts.  Each of these gets translated into a PLACEMENT.
+    ##  Repeat the same set of tests as for untransformed texts, with
+    ##  two changes.
+    ##    - add a transform
+    ##    - change the string to "transformed text"
+
+    ## These two should be merged.
+    text
+        layer 0
+        texttype 1
+        presentation 0x3a
+        pathtype 0
+        width 5
+        strans 0x8000
+        mag 2.0
+        angle 90.0
+        xy 1 100 200
+        string "transformed text"
+        propattr 22
+        propvalue "text-prop-22"
+        propattr 33
+        propvalue "text-prop-33"
+        endel
+    text
+        layer 0
+        texttype 1
+        presentation 0x3a
+        pathtype 0
+        width 5
+        strans 0x8000
+        mag 2.0
+        angle 90.0
+        xy 1 -200 -100
+        string "transformed text"
+        propattr 33
+        propvalue "text-prop-33"
+        propattr 22
+        propvalue "text-prop-22"
+        endel
+
+    ## All these are different.  Each changes one field.
+
+    text                        # no properties
+        layer 0
+        texttype 1
+        presentation 0x3a
+        pathtype 0
+        width 5
+        strans 0x8000
+        mag 2.0
+        angle 90.0
+        xy 1 -200 -100
+        string "transformed text"
+        endel
+    text
+        layer 0
+        texttype 2              # <------
+        presentation 0x3a
+        pathtype 0
+        width 5
+        strans 0x8000
+        mag 2.0
+        angle 90.0
+        xy 1 -200 -100
+        string "transformed text"
+        endel
+    text
+        layer 0
+        texttype 1
+        presentation 0x32       # <------
+        pathtype 0
+        width 5
+        strans 0x8000
+        mag 2.0
+        angle 90.0
+        xy 1 -200 -100
+        string "transformed text"
+        endel
+    text
+        layer 0
+        texttype 1
+        presentation 0x3a
+        pathtype 2              # <------
+        width 5
+        strans 0x8000
+        mag 2.0
+        angle 90.0
+        xy 1 -200 -100
+        string "transformed text"
+        endel
+    text
+        layer 0
+        texttype 1
+        presentation 0x3a
+        pathtype 0
+        width 10                # <------
+        strans 0x8000
+        mag 2.0
+        angle 90.0
+        xy 1 -200 -100
+        string "transformed text"
+        endel
+    text
+        layer 0
+        texttype 1
+        presentation 0x3a
+        pathtype 0
+        width 5
+        strans 0                # <------
+        mag 2.0
+        angle 90.0
+        xy 1 -200 -100
+        string "transformed text"
+        endel
+    text
+        layer 0
+        texttype 1
+        presentation 0x3a
+        pathtype 0
+        width 5
+        strans 0x8000
+        mag 0.0                 # <------ (will be changed to 1.0 with warning)
+        angle 90.0
+        xy 1 -200 -100
+        string "transformed text"
+        endel
+    text
+        layer 0
+        texttype 1
+        presentation 0x3a
+        pathtype 0
+        width 5
+        strans 0x8000
+        mag 2.0
+        angle 180               # <------
+        xy 1 -200 -100
+        string "transformed text"
+        endel
+    text
+        layer 0
+        texttype 1
+        presentation 0x3a
+        pathtype 0
+        width 5
+        strans 0x8000
+        mag 2.0
+        angle 90.0
+        xy 1 -200 -100
+        string "transformed text 2"     # <------
+        endel
+    text
+        layer 99                # <------
+        texttype 1
+        presentation 0x3a
+        pathtype 0
+        width 5
+        strans 0x8000
+        mag 2.0
+        angle 90.0
+        xy 1 -200 -100
+        string "transformed text"
+        endel
+    text
+        layer 0
+        texttype 1
+        xy 1 -200 -100
+        string "transformed text"
+        endel
+
+    endstr
+
+#-----------------------------------------------------------------------
+
+# Test that the overflow checks work
+
+bgnstr 104 8 1 12 0 0  104 8 1 12 0 0
+    strname "overflow_cell"
+
+    # First start with four copies of a 1x1 rectangle.  The lowest coord
+    # value is -2 billion, so that becomes the position.
+    boundary
+        layer 0
+        datatype 0
+        xy   5   0 0   0 1   1 1   1 0   0 0
+        endel
+    boundary            # this one should become a separate element
+        layer 0
+        datatype 0
+        xy   5    1500000000  1500000000
+                  1500000000  1500000001
+                  1500000001  1500000001
+                  1500000001  1500000000
+                  1500000000  1500000000
+        endel
+    boundary
+        layer 0
+        datatype 0
+        xy   5   -1000000001 -1000000001
+                 -1000000000 -1000000001
+                 -1000000000 -1000000000
+                 -1000000001 -1000000000
+                 -1000000001 -1000000001
+        endel
+    boundary
+        layer 0
+        datatype 0
+        xy   5   -2000000001 -2000000001
+                 -2000000000 -2000000001
+                 -2000000000 -2000000000
+                 -2000000001 -2000000000
+                 -2000000001 -2000000001
+        endel
+
+    # This one is at +1 billion, which is not reachable from the
+    # previous pos, so gds2oasis should switch temporarily to absolute
+    # xy-mode.
+
+    boundary
+        layer 1
+        datatype 0
+        xy   5    1000000000  1000000000
+                  1000000000  1000000001
+                  1000000001  1000000001
+                  1000000001  1000000000
+                  1000000000  1000000000
+        endel
+
+    boundary
+        layer 2
+        datatype 0
+        xy   5    2000000000  2000000000
+                  2000000000  2000000001
+                  2000000001  2000000001
+                  2000000001  2000000000
+                  2000000000  2000000000
+        endel
+
+    # Repeat the test for text elements, which use a different modal
+    # variable in OASIS.
+
+    text
+        layer 0
+        texttype 0
+        xy  1  0 0
+        string "foo"
+        endel
+    text
+        layer 1
+        texttype 0
+        xy  1  -2000000000 -2000000000
+        string "foo"
+        endel
+    text
+        layer 2
+        texttype 0
+        xy  1  +1000000000 +1000000000
+        string "foo"
+        endel
+
+    # Placements use yet another modal variable.
+
+    sref
+        sname "sref-1"
+        xy  1  0 0
+        endel
+    sref
+        sname "sref-2"
+        xy  1  -2000000000 -2000000000
+        endel
+    sref
+        sname "sref-3"
+        xy  1  +1000000000 +1000000000
+        endel
+
+    endstr
+endlib

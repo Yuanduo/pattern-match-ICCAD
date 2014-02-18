@@ -1,0 +1,560 @@
+# gdsii/ErrorLog
+#
+# last modified:   17-Feb-2005  Thu  22:55
+#
+# Copyright (c) 2004 SoftJin Infotech Private Ltd.
+# See the accompanying file LICENSE.
+
+
+date:   25 Feb 2004
+
+loc:    AnalyzeFile()                                   gds-recstats.cc
+desc:   Did not initialize the members of the recStats array.
+
+
+loc:    AnalyzeFile()                                   gds-recstats.cc
+desc:   Wrong initializer for the minLength field: should be
+        max value for size_t, not 0.
+
+
+loc:    AnalyzeFile()                                   gds-recstats.cc
+desc:   Forgot \n at end of printf() format string.
+
+
+loc:    AnalyzeFile()                                   gds-recstats.cc
+desc:   Printed stats like avgSize for all records.
+        Should print only if numRecs > 0.
+
+
+date:   26 Feb 2004
+
+
+loc:    AnalyzeFile()                                   gds-recstats.cc
+desc:   When printing processing speed in MBytes/sec,
+          - did not divide file size by 1MB
+          - did not check time != 0 before dividing size by time
+
+
+date:   12 Mar 2004
+
+
+loc:    scanner.h
+desc:   Used getRecordType() instead of getDataType() in the
+        assertions of the nextXxx() methods:
+            assert (getRecordType() == GDATA_INT  &&  bytesAvail() >= 4);
+
+
+loc:    Gds2AsciiConverter::convertNormalRecord()       asc-conv.cc
+desc:   Did not print space before string literal.
+
+
+loc:    Gds2AsciiConverter::convertNormalRecord()       asc-conv.cc
+desc:   Wrong format for doubles.  Used "%f"; should be "%.16g"
+        to handle arbitary numbers and to ensure all significant digits
+        are printed.
+
+
+loc:    AnalyzeFile()                                   gds-recstats.cc
+desc:   After changing the type of minLength from size_t to int,
+        forgot to change the type in the initialization:
+            rs->minLength  = std::numeric_limits<size_t>::max();
+
+
+
+date:   13 Mar 2004
+
+
+loc:    DoubleToGdsReal()                               double.cc
+desc:   Wrong variable:
+
+            // Make sure the significand is positive and write the
+            // first byte -- the sign bit and exponent.
+
+            int  signBit = 0;
+            if (val < 0) {
+                signBit = 0x80;
+                val = - val;
+            }
+
+        Should be `significand' instead of `val'.  val is the function
+        argument.  Did not notice this in spite of the comment.
+
+
+date:   15 Mar 2004
+
+
+loc:    GdsRecordTypeInfo::recTypeInfo[]                rectypes.cc
+desc:   Specified 65531 as the max valid length of a record body.
+        Should be 65530 since the length must be even.
+
+
+date:   16 Mar 2004
+
+
+loc:    class Gds2AsciiConverter                        asc-conv.cc
+desc:   Did not handle LIBSECUR records.  Because these have a
+        variable number of shorts, the record contents must be
+        prefixed by a count.
+
+
+loc:    GdsRecord::initialize()                         scanner.cc
+desc:   Did not handle LIBSECUR records.  Since the shorts in this
+        record must come in triplets, itemSize must be 6, not 2.
+
+
+loc:    DoubleToGdsReal()                               double.cc
+desc:   Boundary case.  Did not handle largest representable GDSII
+        number correctly.  Because GDSII has 3 more bits of precision
+        than a double, converting the largest GDSII real to a double
+        gives a value that cannot be converted back.  Need
+        special-case code to handle this.
+
+
+date:   18 Mar 2004
+
+
+loc:    Gds2AsciiConverter::printStringLiteral()        asc-conv.cc
+desc:   Did not escape \.
+
+
+date:   24 Mar 2004
+
+
+loc:    AsciiScanner::readDouble()                      asc-scanner.l
+desc:   Special case.  Forgot about 0.0 when checking that the
+        double is in the GDSII-representable range.
+
+
+loc:    flex pattern for floats                         asc-scanner.l
+desc:   Missed the ? after the [-+] to make the sign optional:
+                float_f      [-+]({digit}+\.{digit}*|\.{digit}+)
+
+
+
+date:   27 Mar 2004
+
+
+loc:    GdsRecordTypeInfo::recTypeInfo[]                rectypes.cc
+desc:   Wrong value for min length of REFLIBS records:
+        44 instead of 88.
+
+
+date:   8 Apr 2004
+
+
+loc:    GdsWriter::ensureSpaceForRecord()               writer.cc
+desc:   Omitted writing `throw' to throw an exception:
+            if (WriteNBytes(fdout, buf, WriteSize) < 0)
+                SystemException("write");
+        Should be:
+                throw SystemException("write");
+        Same error in endFile().
+
+
+date:   18 Apr 2004
+
+
+loc:    GdsScanner::getNextRecord()                     scanner.cc
+desc:   Off by one: <= instead of <
+
+            // Ensure we have at least the length field in the buffer.
+            if (bytesAvail() <= LengthBytes) {
+                fillBuffer();
+
+        Should be
+            if (bytesAvail() < LengthBytes) {
+
+
+date:   19 Apr 2004
+
+
+loc:    GdsWriter::writeShortRecord()                   writer.cc
+desc:   Block copy:
+
+            void
+            GdsWriter::writeShortRecord (GdsRecordType recType, int val)
+            {
+                beginRecord(recType);
+                writeBitArray(val);
+                endRecord();
+            }
+
+        `writeBitArray' should be `writeShort'.  Result of copying
+        definition of writeBitArrayRecord().
+
+
+
+date:   7 May 2004
+
+
+loc:    double.cc
+desc:   Did not #include "double.h"
+
+
+date:   14 May 2004
+
+
+loc:    main()                                          gds-copy.cc
+desc:   Did not catch exceptions thrown by parser or creator.
+
+
+loc:    main()                                          gds2ascii.cc
+desc:   Invoked FatalError() with error message as first arg:
+            FatalError(exc.what());
+        Should be
+            FatalError("%s", exc.what());
+        because the first arg is a format string and the error message
+        may contain % chars.
+
+
+loc:    asc-conv.cc
+desc:   Did not #include "asc-conv.h"
+
+
+loc:    AsciiWriter::~AsciiWriter()                     asc-writer.cc
+desc:   Threw exception in destructor.
+
+
+date:   15 May 2004
+
+
+loc:    main()                                          gds2ascii.cc
+desc:   After adding options -a and -u, forgot to add them to the
+        option string arg of getopt().
+
+
+loc:    convertXYRecord()                               asc-conv.cc
+desc:   Adding option showOffsets:
+        Need to add extra indentation to the continuation lines
+        when showOffsets is true.
+
+
+loc:    AsciiWriter::continueRecord()                   asc-writer.cc
+desc:   Wrong number of spaces for extra padding.  Should match
+        OffsetFormat in beginRecord(), but I missed the trailing
+        two blanks in OffsetFormat.
+
+
+loc:    asc-scanner.l
+desc:   Forgot to add scanner rule to ignore record offsets.
+
+
+loc:    asc-scanner.l
+desc:   Bad fix for previous bug.
+        Did not enclose the pattern name rec_offsets in braces when
+        using it.
+
+
+date:   17 May 2004
+
+
+loc:    GdsScanner::seekTo()                            scanner.cc
+desc:   Wrong logic for testing if desired offset is already in
+        buffer:
+            if (offset >= fileOffset - (bufptr - buf)
+                    &&  offset < fileOffset + (bufend - buf)) {
+        Since fileOffset is the offset of *bufptr, the second line
+        should have (bufend - bufptr), not (bufend - buf).
+
+
+loc:    GdsScanner::seekTo()                            scanner.cc
+desc:   Did not update fileOffset for the case when we need to
+        lseek:
+            } else {
+                if (lseek(fd, offset, SEEK_SET) != offset)
+                    abortScanner("lseek failed: %s", strerror(errno));
+                bufptr = bufend = buf;
+            }
+        The invariant that fileOffset is the offset of *bufptr is
+        not maintained.
+fix:    Changing fileOffset so that it is the offset of *buf, not
+        *bufptr.  So it must be updated only in fillBuffer().
+
+
+loc:    DotGraphBuilder::beginLibrary()                 gds-dot.cc
+desc:   Printed "graph" in the header instead of "digraph".
+
+
+date:   19 May 2004
+
+
+loc:    GdsScanner::GdsScanner()                        scanner.cc
+desc:   Used auto_ptr<char> to hold pointer to buffer temporarily.
+        Shouldn't use auto_ptr for arrays.
+        Same error in GdsWriter::GdsWriter().
+
+
+date:   21 May 2004
+
+
+loc:    Gds2AsciiConverter::printStringLiteral()        asc-conv.cc
+desc:   Bad fix for earlier bug (18 Mar 2004).
+        After adding code to escape backslash, did not update this
+        code to handle ordinary (unescaped) chars:
+
+            // Ordinary character
+            if (isprint(static_cast<Uchar>(*cp))  &&  *cp != '"')
+                continue;
+
+        Should include test for \.
+
+
+date:   22 May 2004
+
+
+loc:    Gds2AsciiConverter::printStringLiteral()        asc-conv.cc
+desc:   Printed possibly-signed char as int:
+            snprintf(buf, sizeof buf, "\\%03o", *cp);
+        Should be
+            Uchar  uch = static_cast<Uchar>(*cp);
+            snprintf(buf, sizeof buf, "\\%03o", uch);
+
+
+date:   24 May 2004
+
+
+loc:    GdsScanner::fillBuffer()                        scanner.cc
+desc:   Did not handle partial reads:
+
+            ssize_t  nr = read(fd, buf.buffer+nbytes, BufferSize-nbytes);
+            if (nr < 0)
+                abortScanner("read failed: %s", strerror(errno));
+
+        Must retry read if nr < BufferSize-nbytes.  This might happen
+        because of an interrupt or if the input is a pipe.  EOF is not
+        the only reason for partial reads.
+
+
+loc:    GdsScanner::getNextRecord()                     scanner.cc
+desc:   Did not check that recLength >= HeaderLength.
+
+
+date:   7 Jul 2004
+
+
+loc:    GdsWriter::ensureSpaceForRecord()               writer.cc
+desc:   Wrong code for copying remaining bytes in buffer to front of
+         buffer.  Wrote
+            memcpy(buf, bufptr, bytesLeft);
+        instead of
+            memcpy(buf, buf + WriteSize, bytesLeft);
+time:   30 min
+found:  nag
+
+
+date:   9 Jul 2004
+
+
+loc:    GdsToAsciiConverter::abortConverter()           asc-conv.cc
+desc:   Used this code to concatenate pieces of an error message:
+
+            int n = snprintf(msgbuf, sizeof msgbuf, "file '%s': ",
+                             infilename.c_str());
+            vsnprintf(msgbuf+n, sizeof(msgbuf)-n, fmt, ap);
+
+        But if the msgbuf is too small snprintf() returns not the number
+        of characters actually written but the number that would have
+        been written if it had been big enough.  So we should compare n
+        with the size of the buffer before appending anything.  Same
+        error in GdsParser::abortParser() and
+        GdsScanner::abortScanner().
+
+
+loc:    many places
+desc:   Should check return value of snprintf().
+        Man page says it can return error.
+
+
+loc:    GdsScanner::getNextRecord()                     scanner.cc
+desc:   After changing arglist of abortScanner() from single const char*
+        to printf()-style varargs, did not change the invocation:
+
+            char  msg[128];
+            snprintf(msg, sizeof(msg), "invalid record: rectype = %u, "
+                                       "length = %u",
+                     recType, bodyLength);
+            abortScanner(msg);
+
+        No symptoms for this bug because msg will never have a %.
+
+
+date:   19 Jul 2004
+
+
+loc:    parser.h
+desc:   Did not #include <cstdarg>
+found:  nag
+
+
+date:   22 Jul 2004
+
+
+loc:    GdsParser::parseStrnameRecord()                 parser.cc
+desc:   Did not check that the structure name is non-empty.
+
+
+date:   27 Jul 2004
+
+
+loc:    GdsCreator::writeStrans()                       creator.cc
+desc:   Interchanged two bit values:
+            if (strans.angleIsAbsolute()) bitArray |= 0x0004;
+            if (strans.magIsAbsolute())   bitArray |= 0x0002;
+        Absolute-angle is 0x02 and absolute-mag is 0x04.
+found:  student
+
+
+loc:    GdsParser::parseAref()                          parser.cc
+desc:   Inverted condition of IF:
+            if (numCols > 1  &&  xyPoints[0] <= xyPoints[1])
+                abortParser("aref has negative or zero column-spacing");
+        "<=" should be ">="
+fix:    Allow negative spacing; forbid only zero spacing.
+found:  student
+
+
+loc:    GdsParser::parseAref()                          parser.cc
+desc:   Check for zero row/col spacing is wrong.
+
+            if (numCols > 1  &&  xyPoints[0].x == xyPoints[1].x)
+                abortParser("aref has zero x-spacing");
+            if (numRows > 1  &&  xyPoints[0].y == xyPoints[2].y)
+                abortParser("aref has zero y-spacing");
+
+        If we allow the array to be tilted then a tilt of 90 degrees
+        should also be acceptable.  Then the 0-1 direction is parallel
+        to the Y axis and a zero x-spacing is acceptable.
+
+
+date:   1 Aug 2004
+
+
+loc:    GdsToAsciiConverter::convertStructure()         asc-conv.cc
+desc:   Did not call writer.beginFile() at beginning of conversion or
+        writer.endFile() at end of conversion.  Did not have these
+        functions originally.  After adding them, changed only
+        convertFile(), not this function.
+symp:   segfault
+time:   15 min (thought bug was in new changes made to convertStructure()
+        and other functions)
+
+
+date:   15 Aug 2004
+
+
+loc:    asc-scanner.l
+desc:   Wrong definitions for the string patterns:
+            norm_string         \"[^"\n]*\"
+            esc_string          \"([^"\n]|\\.)+\"
+            nonterm_string      \"[^"\n]*
+
+        For all patterns, need to include \\ in the character set because
+        it should not match strings with escape sequences.  For
+        nonterm_string, need to use the esc_string pattern, not the
+        norm_string pattern.  Otherwise it will not recognize non-terminated
+        strings with escape sequences.
+
+
+date:   24 Aug 2004
+
+
+loc:    parsePresentationRecord()                       parser.cc
+desc:   Wrong format specifier for printing bit-array in
+        warning message:  %#04u instead of %#.4x.
+        Same error for other bit arrays records.
+
+
+date:   27 Aug 2004
+
+
+loc:    GdsParser::parseLibraryHeader()                 parser.cc
+desc:   For the FONTS record, did not call readNextRecord() to get
+        the next record after processing the record.
+
+            if (rec.getRecordType() == GRT_FONTS) {
+                // ... process the record
+                readNextRecord(&rec);    <---- this was missing
+            }
+
+
+loc:    GdsParser::parseBox()                           parser.cc
+desc:   Called the wrong abortParser() method:
+            abortParser("box coordinates do not form ...");
+        Should be
+            abortParser(rec, "box coordinates do not form ...");
+        so that the record context gets printed.
+        Same error in several other functions.
+
+        Overloaded functions are a menace.  Changed the record-less
+        abortParser() to abortParserNoContext().  Ugly name, but that's
+        better than having wrong code compile.
+
+
+date:   31 Aug 2004
+
+
+loc:    GdsRecordTypeInfo design                        rectypes.h
+desc:   Did not provide a direct way to get the name corresponding to a
+        recType.  Used  get(recType)->name  everywhere.  The trouble is
+        that this fails for record types for which the 'valid' member
+        is false, even though the 'name' member is defined.
+        Fix is to provide  getName(recType)  to get the name directly.
+symp:   Assertion failed in AsciiWriter constructor when it tried to
+        make lowercase versions of all the record type names.
+
+
+date:   14 Sep 2004
+
+
+loc:    AnalyzeFile()                                   gds-recstats.cc
+desc:   Used %lld to print int64_t.
+
+
+date:   7 Oct 2004
+
+
+loc:    AnalyzeFile()                                   gds-recstats.cc
+desc:   After removing the fd argument from the scanner constructor,
+        should have removed the fd argument to this function too.
+
+
+date:   22 Nov 2004
+
+
+loc:    GdsWriter constructor                           writer.cc
+desc:   Forgot to change BUFSIZ to WriteIncr in the assertions.
+
+
+date:   26 Nov 2004
+
+
+loc:    file-index.h
+desc:   After moving the file from the misc directory to here, forgot
+        to change the namespace from SoftJin to Gdsii.
+
+
+date:   28 Nov 2004
+
+
+loc:    GdsCreator::beginLibrary()                      creator.cc
+desc:   Did not write the optional <FormatType> part of the library
+        header.
+
+
+loc:    class GdsLibraryOptions                         builder.h
+desc:   Did not provide a method to get the format.
+
+
+date:   8 Feb 2005
+
+
+loc:    GdsTransform::setMag()                          builder.h
+desc:   After changing GdsParser::parseStrans() to accept zero
+        magnifications, forgot to update this assertion in setMag():
+
+                    assert (mag > 0.0);
+
+        The > should now be >=.
+        Similar error for the generations field in GdsLibraryOptions:
+        the assertion there should be deleted.
+found:  user

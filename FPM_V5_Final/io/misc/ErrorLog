@@ -1,0 +1,48 @@
+# misc/ErrorLog
+#
+# last modified:   27-Feb-2005  Sun  12:30
+#
+# Copyright (c) 2004 SoftJin Infotech Private Ltd.
+# See the accompanying file LICENSE.
+
+date:   31 May 2004
+
+
+loc:    Buffer constructor                              buffer.h
+desc:   Simply called create() in the ctor to initialize all data members.
+        But create() asserts that the buffer member is Null.
+
+
+date:   19 Jul 2004
+
+
+loc:    StringPool::extendAlloc()                       stringpool.cc
+desc:   Always added a new block to the chain.  Should first see
+        if there is a next block in the chain and it's big enough.
+found:  nag
+
+
+date:   17 Aug 2004
+
+
+loc:    PointerVector<T> copy constructor               ptrvec.h
+desc:   Misunderstanding of library routine.  Thought that
+        vector<T>(size_t n) created an empty vector and only reserved
+        n elements.  Actually creates an n-element vec using T's
+        default constructor.
+
+            template <typename T>
+            PointerVector<T>::PointerVector (const PointerVector<T>& other)
+                : vector<T*>(other.size())
+            {
+        So the code puts other.size() Nulls in the vector before copying
+        other's elements.
+symp:   segfault dereferencing the Null ptr
+time:   90 min
+
+
+date:   27 Feb 2005
+
+loc:    Box<NumberT>::operator|=()                      geometry.h
+desc:   Forgot to return *this.
+        Same error in operator&= etc.

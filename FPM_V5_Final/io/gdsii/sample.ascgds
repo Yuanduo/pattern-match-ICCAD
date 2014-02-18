@@ -1,0 +1,364 @@
+# gdsii/sample.ascgds -- show format of ASCII version of GDSII files
+#
+# last modified:   24-Feb-2005  Thu  10:56
+#
+# Copyright (c) 2004 SoftJin Infotech Private Ltd.
+# See the accompanying file LICENSE.
+
+# Comments begin with a # and continue to the end of the line.
+# Comments may appear on the same line as data.
+#
+# Whitespace separates tokens.  The whitespace may be omitted in some
+# cases, but it is better to put them always.  Lines may be broken
+# anywhere; line breaks are irrelevant and are treated just like other
+# whitespace.
+#
+# Anything enclosed in square brackets is ignored.  This is to let
+# ascii2gds parse the output of gds2ascii, which with the -a option
+# puts the record offset in square brackets at the beginning of the line.
+#
+# There are five types of data in a GDSII file:
+#     2-byte integers
+#     4-byte integers
+#     bit arrays
+#     8-byte reals
+#     strings
+#
+# 2-byte integers and 4-byte integers are represented by an optional sign
+# followed by an integer as in C/C++.  That is, hexadecimal numbers have a
+# 0x prefix and octal numbers have a 0 prefix.  There must be no space
+# between the sign and the first digit.
+#
+# Bit arrays are also represented as integers, but the values must
+# be non-negative.
+#
+# Real numbers are represented as in C/C++.
+#
+# Strings are enclosed in double-quotes, with double-quote and backslash
+# characters escaped by a backslash.  Unprintable characters must appear
+# in the form \ooo where ooo is the octal representation of the
+# character.  Other C escape sequences like \r and \n are not allowed.
+#
+# Each record begins with the record name.  For all record types except XY,
+# LIBSECUR and REFLIBS, this is followed by the ASCII representation of the
+# contents of the record, separated by spaces.  There is no record
+# terminator.
+#
+# An XY record has the format
+#    XY  n  x1 y1 x2 y2 ... xn yn
+# where n is the number of points and x, y are the coordinates.
+# The coordinates are normally integers in database units, but
+# gds2ascii -u converts them to real numbers in user units.  For now,
+# ASCII files in user units cannot be converted back to GDSII.
+#
+# A LIBSECUR record has the format
+#    LIBSECUR  n  g1 u1 a1 ... gn un an
+# where n is the number of ACL entries.  Each entry is a triplet of
+# integers: group, user, and access.
+#
+# A REFLIBS record has the format
+#    REFLIBS  n  lib1 lib2 ... libn
+# where n is the number of libraries and each lib is a string literal.
+#
+# In the FONTS record, all four filename strings must appear in the record.
+# The strings may be empty.  This follows the format of the GDSII record,
+# which requires all four names, with unused names filled with NULs.
+#
+# The following record types are not accepted:
+#
+#     24  SPACING
+#     29  UINTEGER
+#     30  USTRING
+#     36  STYPTABLE
+#     37  STRTYPE
+#     39  ELKEY
+#     40  LINKTYPE
+#     41  LINKKEYS
+#     53  (reserved)
+
+
+#-----------------------------------------------------------------------
+
+# Sample input
+
+header 3
+bgnlib 104 08 01 12 0 0   104 08 01 12 0 0
+libdirsize 5
+srfname "/spacing/rules/file/name"
+libsecur 3   1 2 3   -4 -5 -6   7 8 9
+libname "sample.gds"
+reflibs 4 "12345678901234567890123456789012345678901234"   # max 44 chars
+          "foo45678901234567890123456789012345678901234"
+          "bar45678901234567890123456789012345678901234"
+          "lib4"
+fonts "12345678901234567890123456789012345678901234"  "foobar" ""  ""
+attrtable "12345678901234567890123456789012345678901234"
+generations 99
+format 1                # 1 = GDSII Filtered Format
+mask "2-10  12"
+mask "15 4"
+endmasks
+units .001 1e-9
+# Library header ends
+
+# Start of first cell
+# Records need not begin on a new line, and case does not matter
+# in record names.  Element records are indented here only to make
+# them easier to read.
+
+BGNSTR  104 08 01 12 0 0   104 08 01 12 0 0
+strname  "cell1"     strclass 0
+
+boundary
+    elflags 0x3
+    plex 0xffffff
+    layer 42
+    datatype 10
+    xy  7  0 0  -10 -20  -100 0  -50 80  50 50  0 50   0 0
+    endel
+boundary
+    plex 0
+    layer 0
+    datatype 0
+    xy 5  -2147483648 -2147483648   -2147483648  2147483647
+           2147483647  2147483647    2147483647 -2147483648
+          -2147483648 -2147483648
+    propattr 1
+    propvalue "\1\2\3\4\5\6\7 all the way to \376\377 then \" and \\"
+    propattr 126
+    propvalue "\17\28\39 <---- that's 5 chars (8 and 9 are separate)"
+    propattr 127
+    propvalue "22222222222222222222"
+    endel
+boundary
+    layer 255
+    datatype 255
+    xy  4  1 0  0 1  0 0  1 0
+    endel
+
+path
+    elflags 0
+    plex  0377          # == 255
+    layer 1
+    datatype 1
+    pathtype 4
+    width 42
+    bgnextn -999
+    endextn +999
+    xy  2  0 0  100 0
+    propattr 1
+    propvalue "foo"
+    endel
+path
+    layer 255
+    datatype 255
+    xy  2  0 0  100 0
+    endel
+path
+    elflags 0x2
+    layer 0
+    datatype 255
+    pathtype 2
+    xy  10  0 0  1 0  1 1  2 1  2 0  3 0  3 1  4 1  4 0  5 0
+    endel
+path
+    plex  0377
+    layer 255
+    datatype 0
+    pathtype 4
+    width 42
+    xy  2  0 0  100 0
+    endel
+
+text
+    elflags 0
+    plex 0
+    layer 0
+    texttype 255
+    presentation 0x003a
+    pathtype 4
+    width 2147483647
+    strans 0x8006
+    mag 1e-70
+    angle 3.1415926535
+    xy  1  2147483647 -2147483648
+    string "foobar"
+    propattr 127
+    propvalue "foo"
+    endel
+text
+    layer 0
+    texttype 255
+    xy  1  2147483647 -2147483648
+    string "foobar"
+    endel
+text
+    plex 0xffff
+    layer 0
+    texttype 255
+    strans 0
+    xy  1  2147483647 -2147483648
+    string "foobar"
+    endel
+text
+    plex 0xffff
+    layer 0
+    texttype 255
+    strans 0
+    xy  1  2147483647 -2147483648
+    string "foobar"
+    endel
+text
+    plex 0xffff
+    layer 0
+    texttype 255
+    presentation 0x0030
+    strans 0
+    angle 90
+    xy  1  2147483647 -2147483648
+    string "foobar"
+    endel
+text
+    plex 0xffff
+    layer 0
+    texttype 255
+    strans 0
+    mag 90
+    xy  1  2147483647 -2147483648
+    string "foobar"
+    endel
+text
+    layer 0
+    texttype 255
+    pathtype 1
+    xy  1  2147483647 -2147483648
+    string "foobar"
+    endel
+
+node
+    elflags 1
+    plex 9
+    layer 0
+    nodetype 255
+    xy  2  99 99 -100 -100
+    endel
+node
+    layer 0
+    nodetype 255
+    xy  2  99 99 -100 -100
+    endel
+
+
+box
+    elflags 1
+    plex 9
+    layer 0
+    boxtype 255
+    xy  5  0 0   1 0   1 1   0 1   0 0
+    endel
+box
+    layer 0
+    boxtype 255
+    xy  5  0 0   1 0   1 1   0 1   0 0
+    endel
+endstr
+
+
+bgnstr 0 0 0 0 0 0  0 0 0 0 0 0
+strname "$_?ABCDEFGHIJKLMNOPQRSTUVWXYZ012"
+sref
+    elflags 1
+    plex 0
+    sname "cell1"
+    strans 0x8000
+    mag 0.1
+    angle -180
+    xy  1  0 0
+    endel
+sref
+    sname "cell1"
+    xy  1  0 0
+    endel
+sref
+    elflags 1
+    sname "cell1"
+    strans 0x8000
+    xy  1  0 0
+    endel
+sref
+    plex 0
+    sname "cell1"
+    strans 0x8000
+    angle -270
+    xy  1  0 0
+    endel
+
+aref
+    elflags 1
+    plex 0
+    sname "cell1"
+    strans 0x8000
+    mag 0.1
+    angle -180
+    colrow 5 10
+    xy  3   0 0  100 50  -50 100
+    endel
+aref
+    sname "cell1"
+    colrow 1 1
+    xy  3   0 0  100 50  -50 100
+    endel
+aref
+    plex 0
+    sname "cell1"
+    strans 0x8000
+    colrow 1 5000
+    xy  3   0 0  0 1000  -2000 0
+    endel
+aref
+    elflags 1
+    sname "cell1"
+    strans 0x8000
+    angle -180
+    colrow 5000 1
+    xy  3   0 0  100 50  -50 100
+    endel
+aref
+    sname "cell1"
+    strans 0x8000
+    mag 0.1
+    colrow 5 10
+    xy  3   0 0  100 50  -50 100
+    endel
+endstr
+
+# Test the warnings for missing datatype, texttype, nodetype, boxtype
+
+BGNSTR 0 0 0 0 0 0  0 0 0 0 0 0
+strname "missing_type_records"
+
+boundary
+    layer 1
+    xy  5  0 0  1 0  1 1  0 1  0 0
+    endel
+path
+    layer 1
+    xy  2  0 0  100 0
+    endel
+node
+    layer 1
+    xy  5  0 0  1 0  1 1  0 1  0 0
+    endel
+box
+    layer 1
+    xy  5  0 0  1 0  1 1  0 1  0 0
+    endel
+text
+    layer 1
+    xy 1 1 1
+    string "foo"
+    endel
+
+endstr
+
+endlib

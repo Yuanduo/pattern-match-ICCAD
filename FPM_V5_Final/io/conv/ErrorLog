@@ -1,0 +1,315 @@
+# conv/ErrorLog
+#
+# last modified:   24-Oct-2005  Mon  19:17
+#
+# Copyright (c) 2004 SoftJin Infotech Private Ltd.
+# See the accompanying file LICENSE.
+
+date:   24 Aug 2004
+
+
+loc:    main()                                          gds2oasis.cc
+desc:   Wrong check for 2 arguments:
+            if (argc != 2)
+                UsageError();
+        Should be 3 instead of 2.
+
+
+loc:    GdsToOasisConverter::makeProperty()             gds-oasis.cc
+desc:   Did not register the newly-created PropName objects with
+        the creator.
+
+
+loc:    GdsToOasisConverter::getPointListType()         gds-oasis.cc
+desc:   For checking whether point-list is type 3 (octangular),
+        only checked for abs(delta_x) == abs(delta_y).
+        Forgot about delta_x == 0 || delta_y == 0.
+
+
+loc:    GdsToOasisConverter::beginPath()                gds-oasis.cc
+desc:   Left the point-list in the GDSII format in the PathInfo class
+        and converted it into OASIS format only in writePaths().
+        Did this because the OASIS format takes more space.  But because
+        the GDSII point-lists contain the absolute coordinates,
+        not deltas as in OASIS, identical paths at different locations
+        did not get merged.
+
+
+date:   26 Aug 2004
+
+
+loc:    UsageMessage                                    gds2oasis.cc
+desc:   After adding -r option, forgot to add to the synopsis line
+        in the usage message.
+
+
+
+loc:    GdsToOasisConverter::beginLibrary()             gds-oasis.cc
+desc:   After adding -c option for validation scheme, forgot to update
+        call to creator.beginFile() to use the validation scheme from
+        the options instead of the constant OasisValScheme.
+
+
+date:   6 Sep 2004
+
+
+loc:    GdsToOasisConverter constructor                 gds-oasis.cc
+desc:   Created property GDS_PATHTYPE with isStandard = true.
+        Should be false.
+
+
+date:   9 Sep 2004
+
+
+loc:    GdsToOasisConverter::makeVerticalTrapezoid()    gds-oasis.cc
+desc:   Did not handle trapezoids that are parallelograms.
+        Wrong computation of width.
+        Similar error in makeHorizontalTrapezoid().
+found:  nag
+
+
+date:   10 Sep 2004
+
+
+loc:    GdsToOasisConverter design                      gds-oasis.cc
+desc:   If two GDSII TEXT elements with non-empty transforms differ
+        only in the transform, they can share the text-cell that is
+        generated.  Only the PLACEMENTs need be different.  But the
+        design does not do this.  It generates separate text-cells for
+        each instead.
+
+
+loc:    GdsToOasisConverter::writeArefs()               gds-oasis.cc
+desc:   Did not invoke
+            arefMgr.sort();
+        before writing the elements.
+
+
+date:   11 Sep 2004
+
+
+loc:    tryVerticalTrapezoid()                          gds-oasis.cc
+desc:   Did not check for edges that cross.  Because trapezoids are
+        forbidden to have edges that cross, such GDSII polygons should
+        be converted to OASIS polygons, not trapezoids.
+        Same error in tryHorizontalTrapezoid().
+
+
+date:   18 Sep 2004
+
+
+loc:    GdsToOasisConverter::tryVerticalTrapezoid()     gds-oasis.cc
+desc:   Special case.  Calculation for pos->y and trap->height did
+        not handle degenerate trapezoids (with coincident vertices)
+        correctly.  Same error in tryHorizontalTrapezoid().
+found:  nag
+
+
+loc:    GdsToOasisConverter::tryVerticalTrapezoid()     gds-oasis.cc
+desc:   Incomplete fix for previous bug.  The code for checking the
+        numbering of vertices also does not handle coincident vertices.
+
+            // But if the 0-3 edge is below the 1-2 edge, what we have
+            // called delta_a is really delta_b, and vice versa.
+            if (pt[0].y < pt[1].y)
+                swap(trap->delta_a, trap->delta_b);
+
+        Because pt[0] and pt[1] may be coincident, we need to check
+            if (pt[0].y < pt[1].y  ||  pt[3].y < pt[2].y)
+
+        Same error in tryHorizontalTrapezoid().
+
+
+loc:    PointGrouper::makeRepetition()                  ptgroup.cc
+desc:   Used value of variable 'next' after mangling it:
+
+            next = end;
+
+            GdsPoint*  pt = next;
+            if (end - pt == 1)
+                return Null;
+            if (pt[0].y == pt[1].y)
+                ...
+
+
+date:   30 Sep 2004
+
+
+loc:    PointGrouper::growArrayUp()                     ptgroup.cc
+desc:   Thought the code recognized arrays like this with intercalated
+        points:
+                       X       X   X   X
+
+                       X       X       X
+        It doesn't.
+        Similar error in growArrayRight().
+
+
+loc:    PointGrouper::allocHorizontalLine()             ptgroup.cc
+desc:   Used variable after mangling it:
+
+            do {
+                start->markAllocated();
+                start = start->right;
+            } while (--ncols != 0);
+
+        In the current design, markAllocated() works by setting
+            right = this;
+        to avoid having a bool member for the allocated flag.
+        So the traversal fails.  The fix is to forget about saving
+        space and add the bool member.
+time:   1 hr
+symp:   assertion failed
+
+
+date:   1 Oct 2004
+
+
+loc:    PointGrouper::makeRepetition()                  ptgroup.cc
+desc:   Did not break out of loop on seeing point out of range:
+
+            for ( ;  iter != end;  ++iter) {
+                Delta  curr(iter->x, iter->y);
+                if (InRange(start, curr)  &&  InRange(prev, curr))
+                    rep.addDelta(curr - start);
+                prev = curr;
+            }
+
+        The 'if' should be
+                if (!InRange(start, curr)  ||  !InRange(prev, curr))
+                    break;
+        Same error in tryHorizontalRepetition() and
+        tryVerticalRepetition().
+
+
+loc:    PointGrouper::PointGrouper()                    ptgroup.cc
+desc:   After moving the unique() call from makeSparseMatrix() to
+        here, forgot to move the line to recompute numPoints too.
+        Did not notice that line of code because it was several lines
+        lower down.
+time:   30 min
+symp:   Exception thrown by vector::reserve() while reading OASIS file.
+
+
+loc:    GdsToOasisConverter::beginAref()                gds-oasis.cc
+desc:   Boundary case.  Did not handle 1x1 AREFs.  Code tried to
+        create a UniformX repetition, but all reps in OASIS require
+        at least two positions.
+found:  nag
+
+
+date:   4 Oct 2004
+
+
+loc:    PointGrouper::tryHorizontalLine()               gds-oasis.cc
+desc:   Dumb mistake.
+            while (elem->right != Null
+                    &&  ! elem->isAllocated()
+                    &&  elem->right->x - elem->x == space) {
+
+        The second line should be
+                    &&  ! elem->right->isAllocated()
+found:  nag
+
+
+date:   7 Oct 2004
+
+
+loc:    GdsToOasisConverter::writeTextCells()           gds-oasis.cc
+desc:   Wanted to force the text cells to be in absolute xy-mode,
+        so I had these statements at the beginning and end of the function:
+
+            creator.setXYrelative(false);
+            ...
+            creator.setXYrelative(options.relativeMode);
+
+        There are two problems with this:
+          - It does not work because OasisCreator's default xy-mode has
+            been set to relative; so the call to beginCell() will anyway
+            set it in relative mode.
+
+          - If there are no text cells then a useless pair of
+            XYABSOLUTE XYRELATIVE records get written.
+
+        Removed the concept of default xy-mode in OasisCreator.
+        Upper layer must now set it explicitly for each cell.
+time:   10 min
+
+
+date:   28 Nov 2004
+
+
+loc:    GdsToOasisConverter design                      gds-oasis.cc
+desc:   Incorrect handling of new option immediateNames.  I thought all
+        that was needed was to pass the option to the OasisCreator
+        constructor.  But other changes need to be made.
+
+          - The code to create the PropNames should be moved from the
+            constructor to beginLibrary().  Otherwise the name records
+            are written before the magic string and START record.
+
+          - When immediateNames is true, all elements should be buffered
+            until the structure ends, and only then should the CELL
+            record and the element records be written.  Otherwise the
+            name records appear inside the cell.
+
+
+date:   17 Feb 2005
+
+
+loc:    gds2oasis design                                gds-oasis.cc
+desc:   Performance bug.  I put elements into hash_sets so that
+        identical elements could be merged.  But I did not include the
+        elements' property list in the computation of the hash value, on
+        the assumption that properties are rarely used.  One input file
+        had 200K srefs to the same cell, each with a unique property.
+        Because the properties were not included in the hash
+        computation, all 200K srefs ended in the same bucket of the hash
+        table.  So gds2oasis took a long, long time to convert the file.
+found:  user
+
+
+date:   27 Feb 2005
+
+
+loc:    GdsToOasisConverter::writeElements()            gds-oasis.cc
+desc:   Had put 'verbose' message about starting new block of elements here.
+        Should instead put the message in endElement() because
+        writeElements() is also invoked at the end of each structure.
+
+
+date:   2 Mar 2005
+
+
+loc:    GdsToOasisConverter::beginStructure()           gds-oasis.cc
+desc:   Used fprintf() to display the 'verbose' messages.
+        Should instead use warnHandler.  Same error in endElement().
+
+
+loc:    GdsToOasisConverter::beginStructure()           gds-oasis.cc
+desc:   Incomplete fix for previous bug.  Should have removed the \n
+        at the end of the message because the warning handler adds
+        it.
+
+
+loc:    GdsToOasisConverter constructor                 gds-oasis.cc
+desc:   Blindly renamed member 'options' to 'convOptions'.
+        The constructor's arg was also called 'options'; it ended up
+        using convOptions before it was initialized from options.
+
+
+date:   25 Oct 2005
+
+
+loc:    GdsToOasisConverter::beginPath()                gds-oasis.cc
+desc:   It is not always correct to treat a PATH as just another way
+        of specifying a polygon.  For some applications PATH and
+        BOUNDARY have different semantics.  So there should be an
+        option to tell beginPath() whether it is okay to try to
+        convert a PATH into an OASIS RECTANGLE.
+found:  user
+
+
+loc:    UsageMessage                                    gds2oasic.cc
+desc:   Adding -p option.  Forgot to add p to the options in the
+        usage line.

@@ -1,0 +1,38 @@
+# misc/Make-defs					-*- makefile -*-
+#
+# last modified:   01-Jan-2010  Fri  18:31
+#
+# Copyright (c) 2004 SoftJin Infotech Private Ltd.
+# This software may be used only under the terms of the SoftJin
+# Source License.  See the accompanying file LICENSE for details.
+#
+# This file is included by ../Makefile.  All paths are with
+# respect to the parent directory because that is where make runs.
+# ../Makefile defines the variables bindir, libdir, and objdir.
+#
+# Because ../Makefile also includes Make-defs from all sibling
+# directories, all variables defined here begin with 'misc_' to avoid
+# name conflicts.
+
+
+misc_library = $(libdir)/libmisc.a
+
+misc_library_objects =			\
+	$(objdir)/misc_arith.o		\
+	$(objdir)/misc_gzfile.o		\
+	$(objdir)/misc_stringpool.o	\
+	$(objdir)/misc_timer.o		\
+	$(objdir)/misc_utils.o
+
+
+$(objdir)/misc_%.o:   misc/%.cc
+	$(COMPILE_CXX) -c $< -o $@
+
+misc_all:   $(misc_library)
+
+$(misc_library):   $(misc_library_objects)
+	ar rv $@ $?
+
+misc_clean:
+	rm -f $(misc_library) $(objdir)/misc_*
+	cd misc;  rm -f $(StandardGarbage)

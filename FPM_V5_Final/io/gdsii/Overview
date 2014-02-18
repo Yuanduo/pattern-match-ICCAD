@@ -1,0 +1,199 @@
+# gdsii/Overview
+#
+# last modified:   02-Mar-2005  Wed  14:30
+#
+# Copyright (c) 2004 SoftJin Infotech Private Ltd.
+# See the accompanying file LICENSE.
+
+This is an overview of the code in this directory.  If you just want to
+understand how to use the library to read and write GDSII files, read
+the file Tutorial or Tutorial.pdf.
+
+GDSII Stream is a file format for describing IC layouts.  GDSII stands
+for Graphics Design System II, apparently an ancient EDA tool.  This
+directory contains code to read and write GDSII Stream files, and to
+convert between GDSII Stream and an equivalent ASCII version.  In the
+remainder of this document we shall refer to GDSII Stream files simply
+as GDSII files.
+
+The GDSII Stream Format specification to which this code was written
+is available on the web; search for "gdsii stream format".
+
+
+The files that are part of the GDSII library, libgdsii.a, are organized
+into three layers, each with two sub-layers.  Each file uses only
+services provided by a layer or sub-layer below it.  You can think of
+the structure as having six layers instead.  But it is better to think
+of layers and sub-layers because there is no difference in levels of
+abstraction between sub-layers in a single layer.
+
+    ---------------------------------------------------------------------
+       creator.cc     parser.cc              asc-conv.cc
+ 2            builder.cc
+    ---------------------------------------------------------------------
+         writer.cc    scanner.cc     asc-scanner.l   asc-writer.cc
+ 1              double.cc
+    ---------------------------------------------------------------------
+                               rectypes.cc
+ 0                              glimits.h
+    ---------------------------------------------------------------------
+
+Broadly speaking, Layer 0 provides generally-useful information about
+all the GDSII record types, Layer 1 is the lexical level (how data is
+represented and collected into records), and Layer 2 is the syntactic
+and semantic level.
+
+If you just want to learn how to read and write GDSII files, it should
+be enough to read builder.h, parser.h, and creator.h.  If you want to
+understand all the code, it is probably best to start at the bottom
+layer and work your way up.  You should be familiar with the code in
+../misc/, especially ../misc/utils.cc.
+
+All the symbols defined in these layers are in the namespace Gdsii.
+Every .cc and .l file has a corresponding .h file as its interface.
+
+
+Layer 0
+=======
+
+    Filename            Types defined
+    -----------------------------------------------------------------
+    glimits.h           -
+    rectypes.cc         GdsRecordType, GdsDataType, GdsRecordTypeInfo
+
+glimits.h defines symbols for various numbers that appear in the GDSII
+specification.
+
+A GDSII file is a sequence of varying-length records, each containing a
+sequence of zero or more primitive data items of one of these types:
+bit arrays, 2-byte integers, 4-byte integers, 8-byte reals, and strings.
+There are 70 types of records.  rectypes.cc provides information
+about the record types and data types that is used by all the upper
+layers.
+
+The enumeration GdsRecordType defines an enumerator for each record
+type.  The enumeration GdsDataType defines enumerators for each
+primitive data type.  The class GdsRecordTypeInfo contains information
+about each type of record, such as the minimum and maximum legal length
+for a record of that type, the data type contained in those records,
+etc.
+
+
+
+Layer 1
+=======
+
+    Filename            Types defined
+    -----------------------------------------------------------------
+    scanner.cc          GdsScanner, GdsRecord
+    writer.cc           GdsWriter
+    double.cc           -
+    asc-scanner.l       AsciiScanner
+    asc-writer.cc       AsciiWriter
+
+GdsScanner is the low-level class for reading GDSII files.  It presents
+a GDSII file as a sequence of records, each stored in a GdsRecord
+object.  GdsRecord in turn presents a record as a sequence of primitive
+data items.
+
+GdsWriter is the low-level class for writing GDSII files.  It is the
+output analogue of GdsScanner and GdsRecord.  It deals with records and
+primitive data.
+
+double.cc contains two functions.  One converts from a GDSII 8-byte real
+to an IEEE 754 double and the other does the reverse.  Logically these
+functions are part of GdsRecord and GdsWriter respectively.  They are
+placed in a separate file partly because they are better read together,
+and partly to make it easier to write a unit test driver for them.
+
+GDSII is a binary format.  To examine a GDSII file, or to create a GDSII
+file for testing, it helps to have an ASCII (text) equivalent.  The file
+sample.ascgds describes the format of this ASCII equivalent.
+AsciiScanner is the ASCII equivalent of GdsScanner: it reads the
+ASCII file and splits it into tokens.  Similarly AsciiWriter is the
+ASCII equivalent of GdsWriter.
+
+
+
+Layer 2
+=======
+
+    Filename            Types defined
+    -----------------------------------------------------------------
+    parser.cc           GdsParser
+    builder.cc          GdsBuilder, GdsElementOptions + others
+    locator.h           GdsLocator
+    creator.cc          GdsCreator
+    asc-conv.cc         GdsToAsciiConverter, AsciiToGdsConverter
+
+GdsParser is a high-level interface to a GDSII file.  It builds on
+GdsScanner's low-level interface to present a GDSII file as a sequence
+of structures, elements, and properties.  This is the class that you
+would normally use to process a GDSII file.
+
+GdsParser is an event-based parser.  Its interface is not an abstract
+syntax tree but another class, GdsBuilder.  (For an explanation of the
+Builder pattern, see the book Design Patterns by Gamma, Helm, Johnson,
+and Vlissides.)  If you are familiar with SAX, the Simple API for XML,
+you can think of GdsBuilder as the GDSII analogue of SAX's
+ContentHandler.
+
+GdsBuilder has virtual member functions for each part of the GDSII file,
+e.g., beginStructure(), endStructure(), beginNode(), beginText(), etc.
+GdsParser invokes the builder's methods as it parses each piece of the
+GDSII file.  To use GdsParser the application must derive a class from
+GdsBuilder, override the virtual functions for the parts of the file
+that matter to it, and pass an instance of this class to GdsParser.
+
+builder.h also defines lots of small classes like GdsElementOptions that
+GdsParser uses to store data to pass to GdsBuilder's methods.
+
+GdsLocator identifies a location in a GDSII file being parsed.
+GdsParser passes a pointer to a GdsLocator to the builder before
+parsing.  If the builder needs to display an error message, it can query
+the locator for the filename and current position in the file.
+
+GdsCreator is the output equivalent of GdsParser, a high-level
+interface for creating GDSII files.  The interesting thing about it is
+that it is derived from GdsBuilder, and the member functions you must
+invoke to create a GDSII file (beginStructure(), endStructure(), etc.)
+are the same ones that GdsParser invokes when it parses a file.  So you
+can copy a GDSII file by passing a GdsCreator instance to GdsParser.
+
+GdsToAsciiConverter converts a GDSII file to its ASCII version.  It uses
+GdsScanner to read the GDSII file and AsciiWriter to write the ASCII
+file.  AsciiToGdsConverter does the reverse conversion, from ASCII to
+GDSII, by using AsciiScanner to read the ASCII file and GdsWriter to
+write the GDSII file.
+
+
+
+Applications
+============
+
+In addition to the library source, this directory has some trivial
+applications that exercise parts of the library.
+
+gds-recstats.cc
+        prints statistics on the record types in a GDSII file.
+
+gds-copy.cc
+        is a minimal test of GdsParser and GdsCreator.  It makes a copy
+        of a GDSII file by passing a GdsCreator object as the GdsBuilder
+        argument to GdsParser::parseFile().
+
+gds2ascii.cc
+        is a wrapper for GdsToAsciiConverter
+
+ascii2gds.cc
+        is a wrapper for AsciiToGdsConverter
+
+gds-cells.cc
+        lists the names of all the structures in a GDSII file.
+
+gds-dot.cc
+        generates a dot description of the structure graph of a GDSII
+        file.  The structure graph shows which structures reference
+        which other structures.  Dot is a tool for drawing graphs.
+        It is part of the graphviz package available at
+        http://www.research.att.com/sw/tools/graphviz/

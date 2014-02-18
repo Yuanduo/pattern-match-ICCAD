@@ -1,0 +1,558 @@
+# oasis/ErrorLog
+#
+# last modified:   13-Feb-2005  Sun  19:51
+#
+# Copyright (c) 2004 SoftJin Infotech Private Ltd.
+# See the accompanying file LICENSE.
+
+
+date:  18 Jul 2004
+
+
+loc:    OasisWriter::updateCrcFromFile()                writer.cc
+desc:   Boundary case.  Did not handle case when entire file fits into
+        fileBuf.
+            assert (crcNextOffset <= fileOffset);
+
+            // There is nothing to do if we never suspended computing the CRC.
+            if (fileOffset == crcNextOffset)
+                return;
+
+        If fileBuf has never been flushed then fileOffset will still
+        be 0, but crcNextOffset's initial value is StartRecordOffset.
+        So the assertion fails.
+
+        finishEndRecord() also did not take care of this boundary case.
+
+
+loc:    OasisCreator::writeNameTables()                 creator.cc
+desc:   Should create the cellOffsetPropName only if cells have been
+        written.  If not, we will never have to write an S_CELL_OFFSET
+        property record.
+
+
+loc:    ParserImpl::parsePropNameTable()                parser.cc
+desc:   Block copy:
+            parseTextString(static_cast<NameRecord*>(orecp));
+        Should be parsePropName(...)
+
+
+loc:    test driver
+desc:   Created instance of OasisBuilder instead of DebugBuilder.
+
+
+loc:    OasisCreator::setPropValueList()                creator.cc
+desc:   Followed the pattern of the other modal-var funcs and set the
+        bit in the info-byte only if the current prop-value-list differed
+        from the previous one.  But ReuseValueBit in property-info-byte
+        has a meaning opposite to that of other info-byte bits: 0 means
+        that a value-list appears in the input stream and 1 means that
+        the previous value-list should be reused.
+
+
+loc:    RefNameDict::add()                              dicts.cc
+desc:   Wrong assertion
+            assert (autoNumber  ||  allNames.size() == 0);
+        This is supposed to verify that only one of the two add()
+        methods is invoked for any given dictionary.  It doesn't work
+        because lookupName() and lookupRefnum() also add entries, making
+        the size non-zero.  Should have two flags, one for each function.
+
+
+loc:    OasisWriter::beginCblock()                      writer.cc
+desc:   Missing break at end of case in switch statement.
+
+
+loc:    OasisWriter::beginCblock()                      writer.cc
+desc:   Called currFileOffset() after setting compressor.
+        currFileOffset() works only outside cblocks and asserts that
+        compressor == Null.
+
+
+loc:    OasisWriter::endCblock()                        writer.cc
+desc:   Did not copy bufptr to cblockBuf.curr before calling
+        flushCblockBuffer().
+
+
+loc:    OasisWriter::flushCblockBuffer()                writer.cc
+desc:   Wrong exit condition for loop to get compressed output:
+
+            compressor->giveInput(...);
+            do {
+                outbytes = compressor->getOutput(...);
+                ...
+            } while (! compressor->needInput());
+
+        Should add `outbytes != 0' to the exit condition.  Otherwise for
+        the last block (with endOfInput = true) the loop will continue
+        indefinitely because needInput() always returns false once
+        endOfInput is set.
+time:   20 min
+
+
+date:   19 Jul 2004
+
+
+loc:    OasisScanner::fillFileBuffer()                  scanner.cc
+desc:   Did not update fileOffset after reading new data into the
+        buffer.
+
+
+loc:    OasisScanner::fillBuffer()                      scanner.cc
+desc:   Should copy the 'data' member to cblockBuf.curr or fileBuf.curr
+        before invoking the buffer-specific fill functions.
+
+
+loc:    OasisScanner::seekTo()                          scanner.cc
+desc:   Wrong value for file offset of end of buffer:
+            off_t  bufferEndOffset = fileOffset + fileBuf.availData();
+        Should have (fileBuf.end - fileBuf.buffer) instead of
+        fileBuf.availData().
+
+
+loc:    OasisScanner::validateFile()                    scanner.cc
+desc:   Did not check fileBuf.empty() before invoking fillFileBuffer().
+
+
+loc:    OasisScanner::validateFile()                    scanner.cc
+desc:   Bad fix for previous bug.  Should also update fileBuf.curr.
+
+
+loc:    OasisScanner::validateFile()                    scanner.cc
+desc:   Wrong count argument to validator->add()
+            validator->add(fileBuf.buffer, fileBuf.availData());
+        Should take min(fileBuf.availData(), bytesLeft) because
+        fillFileBuffer() will also have read in the validation signature.
+
+
+loc:    OasisScanner::validateFile()                    scanner.cc
+desc:   Wrong address argument to validator->add()
+            Uint  nbytes = min(...)
+            validator->add(fileBuf.buffer, nbytes)
+        Should be fileBuf.curr instead of fileBuf.buffer.
+
+        This makes 4 bugs in a 10-line code fragment.
+
+
+date:   25 Jul 2004
+
+
+loc:    RefNameDict::lookupName()                       dicts.cc
+desc:   Dangling pointer.  For speed, used a plain char* as the key
+        (instead of a string object) when mapping strings to OasisNames.
+        But then we have to ensure that the characters pointed to
+        last as long as the OasisName* value.  The code below doesn't
+        do it.
+
+            auto_ptr<OasisName>  aon(new OasisName(name));
+            allNames.push_back(aon.get());
+            OasisName*  oname = aon.release();
+            stringToName[name.c_str()] = oname;
+
+        Here `name' is the string passed to the function.  Its contents
+        may become invalid after lookupName() returns.  We must instead
+        use the string in the OasisName object:
+
+            stringToName[oname->getName().c_str()] = oname;
+
+        The erroneous code happens to work with gcc because the string
+        class implementation uses copy-on-write with ref counts.  So both
+        `name' and `oname->getName()' point to the same character buffer.
+
+        Same error (twice) in RefNameDict::doAdd()
+
+
+date:   2 Aug 2004
+
+
+loc:    OasisCreator::writePointList()                  creator.cc
+desc:   Did not write the list type or vertex count.
+
+
+date:   16 Aug 2004
+
+
+loc:    AsciiWriter::writeString()                      asc-writer.cc
+desc:   Did not put space before string literal.  Thought code was
+        okay because I copied it from the gdsii AsciiWriter.  But
+        there the upper layer takes care of adding the spaces.
+
+
+loc:    AsciiWriter::writeReal()                        asc-writer.cc
+desc:   Did not put space before the floating-point formats.
+        Only put space for the rational formats.
+
+
+loc:    AsciiKeyword enumeration                        keywords.h
+desc:   KeyInfoByte and KeyHorizontal were out of order, so they
+        did not match the keyword names in keywords.cc.
+
+
+loc:    AsciiRecordReader::readTextField()              asc-recreader.cc
+desc:   Missed break at end of case.
+
+
+loc:    AsciiRecordReader::abortReader()                asc-recreader.cc
+desc:   Printed record offset, which is undefined for the ASCII file.
+        Should print line number instead.  Also printed the errName of
+        the record; should print the ascName instead.
+        Result of copying the code from OasisRecordReader.
+fix:    AsciiRecordReader puts the line number into the fileOffset field.
+
+
+loc:    AsciiWriter::writeReal()                        asc-writer.cc
+desc:   Float32 and Float64 numbers printed wrongly.  Should print
+        them as unambiguous floating-point numbers, with either a
+        decimal point or an exponent, and with an 'f' suffix for
+        Float32.  So I used formats "%.15g" for Float64 and "%.15gf" for
+        Float32.  But %g deletes not just trailing zeros, but also the
+        decimal point.  So 5.0 gets printed as 5 (Float64) or 5f (Float32).
+
+
+loc:    AsciiWriter design                              asc-writer.cc
+desc:   The token-writing functions always put a blank in front of
+        each token.  Should not do it when the token is the first
+        one on a continuation line.
+
+
+date:   17 Aug 2004
+
+
+loc:    AsciiRecordReader::readPlacementRecord()        asc-recreader.cc
+desc:   Set variable infoByte to the info-byte in the input:
+
+            int  infoByte = 0;
+            if (peekToken() == AsciiScanner::TokUnsignedInteger)
+                infoByte = InfoByteBit | readInfoByte();
+
+        The code should be:
+
+            int  infoByte = 0;
+            if (peekToken() == AsciiScanner::TokUnsignedInteger) {
+                recp->infoByte = readInfoByte();
+                infoByte = InfoByteBit;
+            }
+
+        Same error in all the other element-reading functions.
+
+
+loc:    AsciiRecordReader::readPropertyRecord()         asc-recreader.cc
+desc:   Bad fix for previous bug.  Copied the new code to all the
+        element-reading functions, but PROPERTY needs slightly different
+        code because the V bit has the opposite sense.  It starts as 1
+        and is reset to 0 when the value appears.  So the code should be:
+
+            int  infoByte = ReuseValueBit;
+            if (peekToken() == AsciiScanner::TokUnsignedInteger) {
+                recp->infoByte = readInfoByte();
+                infoByte |= InfoByteBit;
+            }
+
+
+loc:    scanner rules                                   asc-scanner.l
+desc:   After changing the record name PLACEMENT_TRANSFORM to
+        PLACEMENT_X, forgot to update the scanner rule to match.
+
+
+loc:    OasisRecordWriter::beginFile()                  rec-writer.cc
+desc:   Did not write OASIS magic string at beginning of file.
+
+
+loc:    action for rationals                            asc-scanner.l
+desc:   Did not put return statement at end of action.
+
+
+loc:    AsciiRecordReader::readPlacementRecord()        asc-recreader.cc
+desc:   When setting the AA bits in the info-byte from the angle,
+        did not first check that the recID is RID_PLACEMENT.
+
+
+loc:    AsciiRecordReader::readXGeometryField()         asc-recreader.cc
+desc:   Block copy:
+            case KeyDatatype:
+                readUIntField(keyword, infoBytep, LayerBit, &recp->layer);
+                break;
+
+        Should set DatatypeBit, not LayerBit, and read into recp->datatype.
+        Result of copy/paste from the KeyLayer case.
+
+
+loc:    scanner rules                                   asc-scanner.l
+desc:   Missed rule for PROPERTY_REPEAT record name.
+        Originally thought I could handle both types of PROPERTY records
+        with a single record name; forgot to add it later.
+
+
+loc:    AsciiWriter::writeReal()                        asc-writer.cc
+desc:   Used %.15g for both float and double.  Should use %.7g for
+        float; otherwise garbage is printed for the lower digits.
+
+
+loc:    OasisRecordWriter::writeRecord()                rec-writer.cc
+desc:   Called OasisWriter::beginRecord() unconditionally at the
+        beginning of the function:
+
+            assert (RecordTypeIsValid(orecp->recID));
+            writer.beginRecord(static_cast<RecordID>(orecp->recID));
+
+        Forgot that the writer's beginRecord() should not be invoked
+        for CBLOCK records.  OasisWriter::beginCblock() itself writes
+        the record-ID.
+
+
+loc:    OasisToAsciiConverter::convertFile()            asc-conv.cc
+desc:   Boundary case.  Did not handle empty cblocks.
+        Used this code to set the inCblock flag immediately after
+        writing the record:
+
+            inCblock = orecp->recPos.inCblock;
+
+        But if the cblock is empty, no record will have recPos.inCblock
+        set.  So no END_CBLOCK record gets printed.  Should instead
+        set inCblock on seeing the CBLOCK record.
+
+
+loc:    OasisToAsciiConverter::convertFile()            asc-conv.cc
+desc:   Bad fix for previous bug.
+        Simply replaced the buggy line by this:
+
+            if (orecp->recID == RID_CBLOCK)
+                inCblock = true;
+
+        Should also set inCblock to false after writing the
+        END_CBLOCK record.
+
+
+loc:    AsciiRecordReader::readCblockRecord()           asc-recreader.cc
+desc:   Should check compType for validity.  OasisRecordWriter blindly
+        passes the compType to OasisWriter::beginCblock().
+
+
+date:   19 Aug 2004
+
+
+loc:    asc-writer.cc
+desc:   Missed #include for <cctype>, <cerrno>, <cstring>
+symp:   Missing <cctype> caused compilation failure with gcc 3.2.2
+found:  nag
+
+
+date:   24 Aug 2004
+
+
+loc:    OasisCreator::beginPath()                       creator.cc
+desc:   Did not write the half-width.
+        This line was missing:
+
+            if (infoByte & HalfwidthBit) writeUInt(halfwidth);
+
+
+date:   26 Aug 2004
+
+
+loc:    EndRecordSize                                   constants.h
+desc:   This constant was declared with type Uint.  Should be int
+        because the OasisParser and OasisRecordReader use
+            seekTo(-EndRecordSize)
+        to seek to the beginning of the END record.  But if EndRecordSize
+        is unsigned, -EndRecordSize has the value 2^32 - 256, not -256.
+        With 32-bit offsets these two numbers are the same, but with
+        64-bit offsets they are not.
+
+
+date:   2 Sep 2004
+
+
+loc:    DisplayWarning()                                ascii2oasis.cc
+desc:   Used  Error(msg)  instead of  Error("%s", msg)
+        Same error in other files.
+
+
+loc:    OasisPrinter::beginFile()                       printer.cc
+desc:   Did not print \n at end of line.
+
+
+loc:    OasisPrinter::printRepetition()                 printer.cc
+desc:   Supplied args to indprint() in the wrong order:
+
+            indprint(1, "repetition type = %s (%d)\n",
+                     repType, GetRepTypeName(repType));
+
+        repType should be last.
+symp:   segfault in vfprintf()
+
+
+loc:    OasisPrinter::printPropValue()                  printer.cc
+desc:   Unwanted space at beginning of format string.
+
+
+loc:    PropValue copy constructor                      names.cc
+desc:   Did not copy member 'resolved' for PV_Ref_* values.
+
+
+loc:    main()                                          oasis-print.cc
+desc:   Did not check return value of OasisParser::parseCell().
+        It returns false if the cellname specified does not exist.
+
+
+loc:    OasisPrinter design                             printer.cc
+desc:   OasisPrinter opens the output file in beginFile() and closes it
+        in endFile().  But when print-oasis wants to print just one
+        cell it invokes OasisParser::parseCell(), which does not invoke
+        the builder's beginFile() or endFile().  The fix is to let the
+        caller open and close the file; constructor now takes a FILE*.
+time:   30 min
+symp:   segfault in vfprintf()
+
+
+date:   5 Sep 2004
+
+
+loc:    UsageMessage[]                                  oasis2ascii.cc
+desc:   Forgot to put square brackets around the ascii-file arg
+        after making it optional.
+
+
+date:   8 Sep 2004
+
+
+loc:    CellDict::~CellDict()                           dicts.cc
+desc:   Did not delete the Cell objects in the hash table.
+
+
+date:   9 Sep 2004
+
+
+loc:    ParserImpl::parsePropString()                   parser.cc
+desc:   Block copy.
+            if (recp->recID == RID_TEXTSTRING) {
+                ...
+        Should be RID_PROPSTRING.
+        Result of copying code from parseTextString().
+
+
+date:   10 Sep 2004
+
+
+loc:    Delta::operator/=()                             oasis.cc
+desc:   Wrong implementation of rounding.  Used this:
+
+            x = static_cast<long> (static_cast<double>(x)/divisor + 0.5);
+
+        Does not work for negative numbers.  -500/5 becomes -99.
+
+
+date:   14 Sep 2004
+
+
+loc:    OasisWriter::beginCblock()                      writer.cc
+desc:   Called flushFileBuffer() to empty fileBuf as much as possible,
+        and later saved bufptr in fileBuf.curr:
+
+            flushFileBuffer();
+            ...
+            fileBuf.curr = bufptr;
+
+        So flushFileBuffer() uses the wrong fileBuf.curr (before it's set
+        to the correct value from bufptr), and the value it sets is then
+        overwritten.  Fix is to use flushBuffer() instead, which saves
+        and restores bufptr.
+symp:   Parts of file were getting written twice or more with
+        compression on, but only in 64-bit mode on Solaris.
+time:   3 hrs
+
+
+loc:    ZlibDeflater::getOutput()                       compressor.cc
+desc:   Assumed that deflate() always writes something out when given
+        input:
+
+            int  zstat = deflate(zinfo, endOfInput ? Z_FINISH : Z_NO_FLUSH);
+            ...
+            Uint  retval = zinfo->next_out - reinterpret_cast<Bytef*>(outbuf);
+            assert (retval != 0);
+
+        The assumption (and hence the assertion) is wrong.  deflate()
+        can eat a lot of input without producing anything if there is
+        enough repetition.
+time:   15 min
+
+
+date:   17 Sep 2004
+
+
+loc:    OasisPrinter::beginTrapezoid()                  printer.cc
+desc:   Did not print trapezoid orientation.
+
+
+date:   18 Sep 2004
+
+
+loc:    AsciiRecordReader::readEndRecord()              asc-recreader.cc
+desc:   Unconditionally read the validation signature:
+
+            recp->valScheme = scanner.readValidationScheme();
+            recp->valSignature = readUInt();
+
+        Should read only when valScheme != Validation::None.
+
+
+date:   23 Sep 2004
+
+
+loc:    UsageMessage[]                                  oasis-print.cc
+desc:   Forgot \n at end of line.
+
+
+date:   8 Oct 2004
+
+
+loc:    UsageMessage[]                                  oasis-print.cc
+desc:   Did not update usage line in message after adding -s option.
+
+
+date:   12 Oct 2004
+
+
+loc:    All functions for handling START record
+desc:   Misread the spec.  In the START record format,
+            '1' version-string unit offset-flag [ table-offsets ]
+        the offset-flag field is 0 if the table-offsets are in the START
+        record, and 1 if they are in the END record.  I took it the
+        other way around.
+found:  nag
+time:   15 min
+
+
+date:   28 Nov 2004
+
+
+loc:    AsciiRecordWriter::writeStartRecord()           asc-recwriter.cc
+desc:   Incomplete fix for previous bug:
+            writeUInt(recp->haveOffsets);
+        should be
+            writeUInt(recp->haveOffsets ? 0 : 1);
+
+        Same error in AsciiRecordReader::readStartRecord().
+
+
+loc:    ZlibDeflater::beginBlock()                      compressor.cc
+desc:   Did not initialize zinfo->avail_in to 0 because the comment
+        for deflateInit() in zlib.h does not mention it.  But it must
+        be initialized because needInput() checks it.
+symp:   assertion failure in OasisWriter::flushCblockBuffer().
+time:   30 min
+
+
+date:   29 Jan 2004
+
+
+loc:    StringToFloat()                                 asc-scanner.l
+desc:   Editing error:
+
+            if (errno != 0
+                    ||  fabs(dval) < numeric_limits<float>::min()
+                    ||  fabs(dval) > numeric_limits<float>::max() )
+            if (errno != 0)
+                abortScanner("floating-point number %s is out of range", str);
+
+        The second "if (errno != 0)" should not be there.

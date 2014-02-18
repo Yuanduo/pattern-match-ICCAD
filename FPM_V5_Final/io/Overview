@@ -1,0 +1,55 @@
+# src/Overview
+#
+# last modified:   10-Sep-2004  Fri  18:23
+#
+# Copyright (c) 2004 SoftJin Infotech Private Ltd.
+# See the accompanying file LICENSE.
+
+
+The source directories are organized into layers like this:
+
+        -------------------
+    3          conv
+        -------------------
+    2      gdsii   oasis
+        -------------------
+    1          misc
+        -------------------
+    0          port
+        -------------------
+
+Each layer uses only the layers below it.  For example, the gdsii and
+oasis directories use only misc and port; they do not use each other
+or conv.
+
+At the bottom is port, the portability layer.  All #ifdefs that check
+for system features are confined to this layer.  Some code in the other
+layers also checks for system features like processor endianness and
+the sizes of primitive types, but this is done in C++, not in the
+preprocessor.
+
+Next comes misc, for code that is not specific to this project.
+
+Above that are gdsii, for the library and utilites dealing with the
+GDSII Stream format, and oasis, for  the library and utilites dealing
+with the OASIS format.
+
+Finally at the top is conv, which contains the GDSII-to-OASIS converter.
+
+
+In each directory the exported .o files are collected into a library
+with the same name as the directory.  For example, the library for
+directory gdsii is libgdsii.a.  All libraries are put in ../lib/.
+The executables in each directory need the library of that directory
+plus the libraries of the lower-level directories.
+
+Each library has a namespace in which it defines its symbols.
+This is the namespace for each directory:
+
+    misc:   SoftJin
+    gdsii:  Gdsii
+    oasis:  Oasis
+    conv:   GdsiiOasis
+
+The files in port/ define their symbols in SoftJin or the global
+namespace, whichever makes more sense.

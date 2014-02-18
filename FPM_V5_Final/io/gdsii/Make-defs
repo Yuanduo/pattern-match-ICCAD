@@ -1,0 +1,91 @@
+# gdsii/Make-defs					-*- makefile -*-
+#
+# last modified:   01-Jan-2010  Fri  18:31
+#
+# Copyright (c) 2004 SoftJin Infotech Private Ltd.
+# This software may be used only under the terms of the SoftJin
+# Source License.  See the accompanying file LICENSE for details.
+#
+# This file is included by ../Makefile.  All paths are with
+# respect to the parent directory because that is where make runs.
+# ../Makefile defines the variables bindir, libdir, and objdir.
+#
+# Because ../Makefile also includes Make-defs from all sibling
+# directories, all variables defined here begin with 'gdsii_' to avoid
+# name conflicts.
+
+
+gdsii_library = $(libdir)/libgdsii.a
+
+gdsii_library_objects =			\
+	$(objdir)/gdsii_asc-conv.o	\
+	$(objdir)/gdsii_asc-scanner.o	\
+	$(objdir)/gdsii_asc-writer.o	\
+	$(objdir)/gdsii_builder.o	\
+	$(objdir)/gdsii_creator.o	\
+	$(objdir)/gdsii_double.o	\
+	$(objdir)/gdsii_parser.o	\
+	$(objdir)/gdsii_scanner.o	\
+	$(objdir)/gdsii_rectypes.o	\
+	$(objdir)/gdsii_writer.o
+
+
+gdsii_execs =		 	\
+	$(bindir)/ascii2gds	\
+	$(bindir)/gds2ascii	\
+	$(bindir)/gds-copy	\
+	$(bindir)/gds-dot	\
+	$(bindir)/gds-cells	\
+	$(bindir)/gds-recstats
+
+
+# Libraries on which the executables in $(gdsii_execs) depend.
+# External libraries like libz are not in this list.
+
+gdsii_dep_libs =	 \
+	$(gdsii_library) \
+	$(misc_library)
+
+
+# Libraries needed to link the executables in $(gdsii_execs)
+
+gdsii_link_libs =         \
+	$(gdsii_dep_libs) \
+	$(Zlibrary)
+
+
+#-----------------------------------------------------------------------
+
+
+$(objdir)/gdsii_%.o:   gdsii/%.cc
+	$(COMPILE_CXX) -c $< -o $@
+
+gdsii_all:   $(gdsii_library) $(gdsii_execs)
+
+$(gdsii_library):   $(gdsii_library_objects)
+	ar rv $@ $?
+
+
+$(bindir)/ascii2gds:   $(objdir)/gdsii_ascii2gds.o $(gdsii_dep_libs)
+	$(LINK_CXX) $(objdir)/gdsii_ascii2gds.o $(gdsii_link_libs) -o $@
+
+$(bindir)/gds2ascii:   $(objdir)/gdsii_gds2ascii.o $(gdsii_dep_libs)
+	$(LINK_CXX) $(objdir)/gdsii_gds2ascii.o $(gdsii_link_libs) -o $@
+
+$(bindir)/gds-copy:   $(objdir)/gdsii_gds-copy.o $(gdsii_dep_libs)
+	$(LINK_CXX) $(objdir)/gdsii_gds-copy.o $(gdsii_link_libs) -o $@
+
+$(bindir)/gds-dot:   $(objdir)/gdsii_gds-dot.o $(gdsii_dep_libs)
+	$(LINK_CXX) $(objdir)/gdsii_gds-dot.o $(gdsii_link_libs) -o $@
+
+$(bindir)/gds-cells:   $(objdir)/gdsii_gds-cells.o $(gdsii_dep_libs)
+	$(LINK_CXX) $(objdir)/gdsii_gds-cells.o $(gdsii_link_libs) -o $@
+
+$(bindir)/gds-recstats:   $(objdir)/gdsii_gds-recstats.o $(gdsii_dep_libs)
+	$(LINK_CXX) $(objdir)/gdsii_gds-recstats.o $(gdsii_link_libs) -o $@
+
+
+gdsii_clean:
+	rm -f gdsii/asc-scanner.cc
+	rm -f $(gdsii_library) $(gdsii_execs) $(objdir)/gdsii_*
+	cd gdsii;  rm -f $(StandardGarbage)

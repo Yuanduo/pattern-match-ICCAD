@@ -1,0 +1,516 @@
+# oasis/DesignNotes
+#
+# last modified:   30-Dec-2009  Wed  17:45
+#
+# Copyright (c) 2004 SoftJin Infotech Private Ltd.
+# See the accompanying file LICENSE.
+
+
+Typedefs for the OASIS signed-integer and unsigned-integer types
+
+    The OASIS spec does not give any upper limit on the sizes of
+    signed and unsigned integers.  We have to decide the largest
+    size we will support.  Originally I had two typedefs for these:
+
+        typedef long   Olong;
+        typedef Ulong  Oulong;
+
+    These were the types returned by OasisScanner::readSignedInteger()
+    and OasisScanner::readUnsignedInteger().  I dropped these in favour
+    of using long and Ulong directly because the typedefs provided no
+    benefit and using them was too much hassle.
+
+    There is no benefit because we want the types to be the largest that
+    the machine supports directly, i.e., 32 bits on a 32-bit machine and
+    64 bits on a 64-bit machine, and that is what long and Ulong provide
+    with the appropriate compiler options.
+
+    Defining them as 32-bit types on a 64-bit machine would restrict the
+    size of integers we can handle, and the whole point of a 64-bit
+    machine is to do away with 32-bit restrictions.  Defining them as
+    64-bit types on a 32-bit machine (using long long) would result in
+    too much overhead because because these types are used for
+    practically all integer variables, and all operations on them would
+    have to be done in software.
+
+    Not only do the typedefs not gain us anything, they are also a
+    hassle to use, mainly because of printf() format strings.  Because
+    we do not know what size Olong and Oulong are, we cannot use "%ld"
+    and "%lu" directly in the format strings of abortParser() and
+    abortScanner().  Instead we need two #defines
+
+        #define PRI_OLONG       "%ld"
+        #define PRI_OULONG      "%lu"
+
+    and use the concatenation of adjacent string literals to get
+    them into the format string.  This is a mess I can do without.
+
+    Of course, typedefs would not cause any problem if I used C++
+    iostream instead of C stdio.  But I gave up on iostream in the
+    sibling directory gdsii because at least in glibc it's much slower
+    than stdio.  For consistency I decided to stick to stdio throughout.
+
+    Originally I also had typedefs for different kinds of integers,
+    e.g., layers, datatypes, etc.  This is because such numbers are
+    hardly likely to exceed even 2^16, so defining them as 32-bit types
+    on a 64-bit system might save space.  I dropped these for two
+    reasons:
+      - Deciding what length each type should be is the job of the
+        application, not this library.
+      - We need to check for overflow whenever we assign a variable
+        of one type to a variable of another type.  Keeping everything
+        a long or Ulong simplifies the library code.
+
+
+
+Internal representation of floating-point numbers
+
+    OasisScanner and OasisWriter assume that the processor represents the
+    C type float by an IEEE 754 single-precision floating-point number
+    and the C type double by an IEEE 754 double-precision floating-point
+    number.  OASIS stores floating-point numbers in IEEE 754 format.
+    The reader and writer just copy the bytes in and out, taking care of
+    endianness.
+
+    We cannot use std::numeric_limits<double>::is_iec559() to verify the
+    assumption because gcc 3.2.2 sets that to false on Linux/x86,
+    apparently because there are no signalling NaNs or some such trivial
+    reason.
+
+
+
+Limits on OASIS file sizes
+
+    Although the program stores offsets in variables of type off_t,
+    OASIS files on a 32-bit system might be limited to about 4GB even
+    when the program is compiled with large file support, i.e., when
+    off_t is a 64-bit long long.
+
+    This is because offsets appear in the OASIS file itself in two
+    places:
+      - in the table-offsets field of START and END records;
+      - as the value of the property S_CELL_OFFSET of CELLNAME records.
+    These offsets are stored using the OASIS type unsigned-integer.
+    The scanner uses Ulong for these types (see the note above), thus
+    limiting all the offsets referenced to 4GB on a 32-bit system.
+
+    If the parser uses any of the offsets, then for all practical
+    purposes the file size itself is limited to about 4GB.  But if the
+    parser does not use the offsets then there is no limit.  The parser
+    uses the table-offsets only if all tables are strict.  It uses the
+    S_CELL_OFFSET property only if it exists and if all tables are
+    strict.  (If any of the tables is not strict, the parser gets all
+    cell offsets by sequentially scanning the whole file.)
+
+    We could with some kludgery recognize which unsigned-integers in the
+    file represent offsets and treat those specially, but it is not
+    worth the trouble.  Since OASIS files are supposedly much more
+    compact than GDSII files, a 4GB OASIS file should correspond to a
+    40 GB GDSII file, which the average user won't handle.  We can
+    reasonably expect people who handle such large files to have 64-bit
+    computers.
+
+    Update 28 Dec 2009
+
+    Anuvad has now been modified to handle large files on systems
+    with 32-bit longs.  Here are the main changes.
+
+      - Class PropValue now stores signed-integer values as llong
+        (long long) and unsigned-integer values as Ullong (unsigned
+        long long).  Earlier it used long and Ulong.
+        Unsigned-integers must be Ullong so that they can store the
+        values of S_CELL_OFFSET without truncation.  Signed-integers
+        are llong only for symmetry.
+
+      - OasisScanner and AsciiScanner have new methods
+        readSignedInteger64() and readUnsignedInteger64().  These
+        return llong and Ullong, respectively.  Similarly
+        OasisWriter and AsciiWriter have new methods
+        writeSignedInteger64() and writeUnsignedInteger64().  The
+        upper layers use these methods to read and write integer
+        property values and the offsets in the START or END record.
+
+      - OFilePos::cblockOffset is now llong instead of Ulong.  It is
+        signed because a negative offset is taken to mean that the
+        position is not in a cblock.  Earlier there was a separate
+        flag to indicate that.
+
+
+Unique text-strings
+
+    Paragraph 16.4 of the spec says:
+
+        The appearance of two TEXTSTRING records in the same file with
+        the same number but different names, or of two TEXTSTRING
+        records in the same file with the same name but different
+        numbers, should be treated as a fatal error.
+
+    The second restriction -- no two records with the same name but
+    different numbers -- does not make sense.  Text strings are just
+    strings, not names.  As with PROPSTRINGs, there is no reason to
+    force them to be unique.  We could well want identical strings,
+    e.g., with different properties.  Therefore the parser does not
+    enforce this restriction.
+
+    Update 20 Apr 2006.  The Nov 2005 revision of the spec retains
+    this restriction, so I have changed the parser to conform.
+
+
+
+Property names and PROPNAME records
+
+    Suppose a PROPERTY record contains some property name (as a
+    propname-string) and a PROPNAME record has the same name, are they
+    the same property name?  That is, should property names be globally
+    unique?  In terms of the code, should the Property object point to
+    the same PropName object that was created for the PROPNAME record or
+    should it point to a unique PropName object created just for the
+    PROPERTY record?
+
+    The choice we make will be visible to the application if the
+    property name itself has properties.  (Recall that any name can have
+    properties associated with it.  This includes property names.)  If
+    we reuse the PROPNAME record's PropName object, those properties
+    will be visible even in the Property object.  But if we create a
+    unique PropName they won't.
+
+    There are two reasons to make property names globally unique.
+
+      - The spec (17.4) says that it is a fatal error for a file to have
+        two PROPNAME records with the same name but different
+        reference-numbers.  This suggests that the names are intended to
+        be unique.
+
+      - It takes less space.
+
+    But there is one big problem with unique property names: forward
+    references.  OasisParser parses the file in two phases (see the item
+    below on parser architecture).  In the first phase it parses all the
+    <name> records with their associated PROPERTY records, and in the
+    second phase it parses all the remaining records.  So what should it
+    do for the following sequence of records?
+
+        CELLNAME foo
+        PROPERTY S_CELL_OFFSET 1000
+        CELLNAME bar
+        PROPERTY 42 2000
+        PROPNAME S_CELL_OFFSET 42
+
+    OasisParser parses all these records in the first phase.  The first
+    PROPERTY record refers to the S_CELL_OFFSET property name using the
+    name while the second one uses the reference-number assigned later.
+    If property names are to be globally unique, OasisParser should use
+    the same PropName object for both PROPERTY records.  But when it
+    sees the second PROPERTY record, it has no way of knowing that
+    reference-number 42 refers to S_CELL_OFFSET.
+
+    I cannot think of any good way to ensure unique property names in
+    the presence of forward references.  The obvious, clean, way is to
+    add yet another pass:
+
+        First pass: process only name records
+        Second pass: process properties of name records
+        Third pass: process everything else
+
+    This would probably make the parser unbearably slow.  How about
+    combining the second and third passes?  OasisParser has no problems
+    with that, but it would mean passing names to the builder methods
+    without their associated properties, which might not be so
+    convenient for the builder.
+
+    The other methods I can think of, like adding a level of indirection
+    or delaying the resolution of property names, are too messy.
+    So I have chosen not to make the property names unique.
+
+
+
+Where to store the properties
+
+    The properties associated with each OasisName object are stored in a
+    PropertyList object.  Where do we put this PropertyList?  There are
+    two choices:
+
+      - in the OasisName class itself, or
+      - in a separate hash table that maps OasisName* to PropertyList*.
+
+    If few names have properties, the second option will probably take
+    less space, even with the hash-table overhead.  But it will be
+    slower than accessing the PropertyList directly from the name.
+
+    I chose the first option, mainly because it simplifies the
+    interface slightly.  If we used a hash table we would need a
+    PropertyManager class, and OasisParser and OasisCreator would
+    have to provide methods to get the property list for each name.
+
+
+
+<name> records and parser architecture
+
+    OASIS defines six kinds of <name> records: CELLNAME, PROPNAME,
+    PROPSTRING, TEXTSTRING, LAYERNAME, and XNAME.  Of these, LAYERNAME
+    and XNAME are straightforward to handle since the names they define
+    are never referenced elsewhere in the file.  But handling the first
+    four turned out to be hard and has greatly influenced the parser
+    architecture.
+
+    The main problem with CELLNAME, PROPNAME, PROPSTRING, and TEXTSTRING
+    is that each associates a string with a reference-number, and these
+    reference-numbers may be used in the file before the <name> record
+    that defines it.
+
+    How does OasisParser handle such forward references?  It cannot
+    simply leave the name field blank in whatever object it creates and
+    fill it in later when it sees the <name> record.  This is because
+    PLACEMENT records may refer to CELLNAME records either by name or by
+    reference-number.  What should the parser do if it sees the
+    following sequence of records?
+        CELL foo
+        ...
+        PLACEMENT 42 ...
+        CELLNAME foo 42
+
+    The PLACEMENT record references the cell called foo, which is
+    assigned the reference-number 42 by the CELLNAME record.  If the
+    parser processes all records in a single pass, it has no way of
+    knowing that the PLACEMENT record refers to the cell foo.  It will
+    know that only after reading all CELLNAME records.  And yet when it
+    calls the OasisBuilder method for the PLACEMENT record it must
+    identify foo as the cell being referenced.
+
+    So the parser must resolve all these forward references before
+    calling the OasisBuilder method.  How does it do that?  The simple,
+    slow way is to make two passes over the file.  The first pass parses
+    only the <name> records and adds the information for each name into
+    a local dictionary.  The second pass then parses the other types of
+    records.
+
+    This sounds straightforward, but it has two problems.  The minor one
+    is that there may be forward references even when the parser is
+    looking only at <name> records.  Each <name> record may be followed
+    by one or more PROPERTY records which may contain references to
+    PROPNAME and PROPSTRING records defined later.  But because nothing
+    is being passed to the builder at this stage, these records can be
+    handled by the technique of creating objects with blank names and
+    filling them in later.  Of course, at the end of the file the parser
+    must ensure that all forward references have been defined.
+
+    Note that even when all tables are strict we cannot always avoid
+    references to as-yet-undefined PROPNAME and PROPSTRING records.
+    It doesn't work to parse those tables first because even PROPNAME
+    and PROPSTRING records can have properties.
+
+    The major problem with two passes is that in the first pass the
+    parser must examine only <name> records and in the second pass
+    everything but the <name> records.  How does it skip the unwanted
+    records?  Unlike GDSII records, OASIS records are not preceded by a
+    length field.  Most OASIS data types have varying lengths, and most
+    records have optional fields; so the only way to skip a record is to
+    parse it and discard it.
+
+    That is why the parser is organized in three layers: OasisScanner,
+    OasisRecordReader, and OasisParser.  OasisScanner is the lexical
+    layer: it assembles bytes into tokens.  OasisRecordReader is the
+    syntactic layer: it assembles tokens into records.  Finally,
+    OasisParser is the semantic layer: it makes the semantic checks,
+    uses the modal state to fill in missing fields, and calls the
+    OasisBuilder methods.
+
+    OasisParser uses OasisRecordReader as an intermediary solely because
+    it then becomes easier for it to skip unwanted records.  For
+    processing the record contents it would have been almost as simple
+    to use OasisScanner directly.
+
+    One alternative is for OasisParser to parse every record until it
+    encounters a forward reference.  Then it can suspend normal
+    processing and switch to a mode in which it parses only <name>
+    records.  At the end it can return to the original position and
+    carry on, this time skipping <name> records.  This avoids the
+    overhead of a separate name pass until it is needed, but at the cost
+    of complexity.  For one thing, the forward reference could appear in
+    the middle of a CBLOCK.  So OasisScanner::seekTo() would need to
+    handle jumps to within a CBLOCK, and the class OFilePos, which
+    stores OASIS file positions, would need more fields for the
+    decompression state.  I decided I could do without this extra
+    hassle.
+
+
+
+Registered and unregistered names in OasisParser
+
+    The OasisNames that the parser creates may be registered or
+    unregistered.  Registered OasisNames are those it puts in OasisDicts
+    and registers with the OasisBuilder using one of the
+    registerFooName() methods.  Unregistered names are those it simply
+    uses in one of the OasisBuilder methods without previously
+    registering it.
+
+    The parser creates registered OasisNames for <name> records and (for
+    CellNames) CELL records.  It creates unregistered OasisNames only to
+    simplify some interface.  Currently it creates unregistered
+    PropNames when a PROPERTY record contains a propname-string, and
+    unregistered TextStrings when a TEXT record contains a text-string.
+
+    The parser makes a registered CellName when it sees a CELL record
+    with a cellname-string.  It would be more logical to make an
+    unregistered CellName instead, to parallel the PROPERTY and TEXT
+    records.  But if we later see a CELLNAME record with the same name,
+    we have to create a registered CellName for that name.  It is not
+    convenient to have both registered and unregistered CellName objects
+    with the same name because CellName pointers are used as keys in
+    CellDict.  Duplicates don't matter for PropName and TextString.
+
+
+
+Properties of <name> records
+
+    The parser passes file, cell, and element properties to the builder
+    immediately after parsing each PROPERTY record.  But for <name>
+    records it just attaches the property to the OasisName object
+    created for the record.  After parsing all the names it invokes the
+    appropriate AddFooName() builder method, which must then use
+    OasisName methods to access the properties if it wants to.
+
+    The parser handles <name> properties differently because, as
+    described above, it can encounter forward references while parsing
+    those properties.  Only after parsing all PROPNAME and PROPSTRING
+    records can it be sure that all forward references are resolved.
+    It parses all the other properties in the second phase, after it has
+    parsed all names.  In this phase there can be no valid unresolved
+    reference; so it can immediately pass each property to the builder.
+
+    Although both CELL properties and CELLNAME properties apply to the
+    cell (paragraph 31.8 of the spec), we store only the CELLNAME
+    properties and not the CELL properties.  This is because the
+    application may parse a cell more than once.  If we stored CELL
+    properties we would need some kludge to avoid repeatedly storing the
+    same properties.
+
+
+
+Validation signatures
+
+    In OasisScanner, the code to compute the OASIS file's validation
+    signature (the CRC or checksum) is clean but slow.  In OasisWriter
+    the code is a mess because it tries to be fast.
+
+    OasisScanner computes the signature in a separate pass of the file,
+    not during tokenization.  Because the file format practically forces
+    the parser to jump around the file, it is not feasible to compute
+    the signature while tokenizing.  It also doesn't make much sense to
+    pass all the data to the Builder and only at the end tell it that
+    it will have to discard everything because the CRC doesn't match.
+
+    Because the parser itself might need two passes over the file (one
+    for the name records and one for the rest), in the worst case the
+    library will make three passes over the file.  That is why the
+    parser and scanner do not verify the CRC/checksum automatically.
+    Instead, they provide separate methods so that the application has
+    to request it explicitly.
+
+    In OasisWriter the validation code is a mess mainly because it tries
+    to avoid a separate pass as far as possible.  It computes the
+    signature for the data in its buffer just before flushing it to
+    disk.  Unfortunately it cannot always do this because of CBLOCKs.
+
+    Each CBLOCK must be preceded by two byte-count fields: the
+    uncompressed size and compressed size of the CBLOCK.  Obviously the
+    writer will know what to put in those fields only at the end of the
+    CBLOCK.  What happens if the buffer becomes full and must be flushed
+    before the CBLOCK ends?  The writer cannot compute the validation
+    signature of the buffer's contents because the bytes reserved for
+    the CBLOCK byte-counts do not have valid data.
+
+    It can, but only for Checksum32 validation.  The compressor can
+    store zeros (which don't affect the checksum) in the byte-count
+    fields initially.  If the buffer gets flushed, its contents can be
+    checksummed as usual.  At the end of the CBLOCK, when the compressor
+    knows the counts, it can format those numbers in a temporary buffer
+    and pass them to the validator.  This works because bytes can be
+    checksummed in any order,
+
+    However, that does not work for CRC32 validation.  For CRC the
+    validator must be given the bytes in the right order.  So when it
+    sees an unfilled byte-count field, it suspends the validation.
+    Then, at the end of the file, the writer returns to where the
+    validation was suspended, reads what it wrote, and passes all the
+    data to the validator.  It could do this at the end of the CBLOCK
+    itself, but it is simpler to wait until the file ends.  Also, if
+    there is one large CBLOCK that overflows the output buffer, then
+    there are likely to be more large CBLOCKs later.  There is no point
+    in repeatedly suspending and restarting the CRC computation.
+
+    So now you see why the validation code in OasisWriter is a mess.
+    Because it _is_ possible some of the time to avoid a separate pass,
+    it is worth our while to avoid it whenever we can.  But because of
+    the way the compressor and validator interact, it is possible only
+    _some_ of the time.  The validator needs to know about the
+    compressor: whether the data it is fed contains the byte-counts for
+    an active CBLOCK.  The compressor needs to know about the validator:
+    when a CBLOCK ends it must pass the byte-counts to the validator.
+    I couldn't figure out how to separate the two.
+
+
+
+Registering names with OasisCreator
+
+    When creating an OASIS file, the application should register with
+    OasisCreator all the OasisName objects for which it wants refnums to
+    be used.  This includes any PropName and PropString objects in the
+    property lists of the names it passes.  The registration functions
+    are the addFooName() methods inherited from OasisBuilder.
+
+    It is possible for OasisCreator to scan the property lists and
+    register the PropName and PropString objects itself, but it is not
+    convenient.  The property list of a PropName or PropString to
+    include a pointer to itself.  If OasisCreator blindly followed the
+    pointer, it would enter an infinite recursion.  To break the
+    recursion it would in general need a stack.
+
+    This is too much hassle; it is easier to get the application to
+    register each name.  It also simplifies OasisCreator's
+    specification.
+
+
+
+Modal variable propertyIsStandard
+
+    The class ModalVars includes a boolean member propertyIsStandard
+    that is not mentioned as a modal variable in the section 10 of the
+    spec.  It holds the value of the S bit in the PROPERTY record's
+    info-byte.  We need it to implement record type 29
+    (RID_PROPERTY_REPEAT), which reuses the entire contents of the last
+    PROPERTY record.
+
+    The spec says this about record type 29 in paragraph 31.2:
+
+        Record type `29' provides a compact way to specify a duplicate
+        copy of the most-recently-seen property together with its value
+        list.  It makes use of modal variables last-property-name and
+        last-value-list, which were defined by a previous PROPERTY
+        record.
+
+    A PROPERTY record, however, also has an info-byte whose S bit says
+    whether the property is a standard one.  Presumably there can be
+    standard and non-standard properties with the same name but with
+    different semantics.  If so, when reusing a property name and value
+    list it makes sense to also reuse the S bit.  Hence the modal
+    variable.
+
+
+
+AsciiToOasisConverter and S_CELL_OFFSET properties
+
+    AsciiToOasisConverter does nothing special about S_CELL_OFFSET
+    properties of CELLNAME records.  The property value written in the
+    OASIS file is the value in the ASCII file, so it will almost
+    certainly be garbage.  It is possible to get the correct values in
+    the file, but only with lots of effort.  For the intended use of
+    ascii2oasis -- hand-crafting small OASIS files for testing -- the
+    feature is not worth the effort.
+
+    The big problem is recognizing those properties, because the
+    PROPERTY record can contain a refnum to a PROPNAME record further
+    on.  We either have two passes or we keep a list of possible
+    properties whose values we patch in the OASIS file if we learn later
+    that they really are S_CELL_OFFSET properties.  Neither choice is
+    appealing.

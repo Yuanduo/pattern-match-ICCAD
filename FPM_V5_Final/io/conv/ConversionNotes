@@ -1,0 +1,166 @@
+# conv/ConversionNotes -- peculiarities of the GDSII-to-OASIS converter
+#
+# last modified:   02-Mar-2006  Thu  12:58
+#
+# Copyright (c) 2004 SoftJin Infotech Private Ltd.
+# See the accompanying file LICENSE.
+
+
+Notes on the gds2oasis options
+------------------------------
+
+When you run gds2oasis you should normally use -z to enable
+compression.  With -z, each cell and name table is put into a CBLOCK
+record.  The only reason not to use -z is that you are a developer
+checking the performance of the tool.
+
+With the -r option gds2oasis uses relative coordinates for all cells,
+but this probably will not help much because it does not sort the
+elements according to their coordinate values.  This option exists
+mainly for future experimentation.
+
+Some OASIS tools require each name record to appear in the file before
+its reference number is used.  Use the -n option to create OASIS files
+that such tools can read.  But note that using -n penalizes parsers like
+Anuvad's that implement the full OASIS specification.  Such parsers are
+more or less forced to make two passes over the file to read it.
+Without -n gds2oasis collects all name records in strict-mode name
+tables at the end of the file.  Full OASIS parsers can read such files
+quickly because they can jump to the start of each name table instead of
+scanning the whole file for name records.
+
+Some GDSII files contain duplicate elements.  gds2oasis normally
+deletes these duplicates because they are redundant.  But sometimes
+you want these to appear in the output, perhaps to verify that the
+input and output have the same number of elements.  With the
+-D option gds2oasis preserves these duplicates.  Currently it does
+not group these duplicates into arrays, even with -O2.  If there are
+many duplicates, the output file with -D may be much larger than the
+file without -D.
+
+The option -O2 enables code that recognizes uniformly-spaced arrays
+and lines, and generates more compact OASIS repetition specifications
+for those.  The following results have been noted for the current
+implementation.
+
+  -  -O2 is usually only slightly better (i.e., generates smaller
+     files) than -O1.  Only with highly-regular designs is -O2
+     significantly better.
+
+  -  -O2 -z is usually about the same as -O1 -z.
+
+  -  -O1 -z is almost always much better than -O2.
+
+That is, it looks as if zlib's compression algorithm does a better job
+of detecting regularities than the code to generate compact repetitions.
+That code and the -O option remain because -O2 does help occasionally.
+
+The option -O0, which disables most of the optimization, exists just to
+check performance.  Don't use it.
+
+
+
+Limitations of the converter
+----------------------------
+
+GDSII has some seldom-used features that OASIS does not support.
+This section describes what we do about them.
+
+gds2oasis aborts if the GDSII parser sees a record type it does not
+know how to handle.  These record types, which presumably do not occur
+in normal GDSII files, are listed in ../gdsii/parser.h.
+
+gds2oasis ignores the following parts of the GDSII file.
+
+  - all records in the library header except for UNITS
+
+  - in the UNITS record, the first value (the size of database units
+    in user units)
+
+  - in the BGNSTR record, the creation time and modification times
+
+  - NODE elements
+
+  - the ELFLAGS and PLEX records for all elements
+
+
+Other issues
+
+  - GDSII supports rounded ends for paths whereas OASIS supports only
+    square ends.  Therefore in the PATHTYPE record gds2oasis
+    translates path type 1 (rounded ends) into halfwidth extensions
+    in OASIS and writes to standard error a warning like the following:
+
+    gds2oasis: file 'foo.gds', structure 'cell_bar', element at offset 8888:
+        warning: OASIS does not support PATHTYPE 1 (round-ended);
+        changed to 2 (square-ended)
+
+
+  - In the WIDTH record in PATH elements, a negative width means
+    that the width is unaffected by the magnification of the parent
+    reference.   OASIS does not support absolute widths, so
+    gds2oasis makes such widths positive (i.e., relative) with a
+    warning message like this:
+
+    gds2oasis: file 'foo.gds', structure 'cell_bar', element at offset 8888:
+        warning: absolute path width -5 converted to relative
+
+
+  - In the WIDTH record in PATH elements, GDSII gives the path width,
+    OASIS gives the path halfwidth.  If the GDSII width is odd,
+    gds2oasis makes OASIS halfwidth (width+1)/2.  There is no
+    warning message.
+
+
+  - For AREFs, GDSII specifies the total spacing for all rows and all
+    columns.  The spacing between adjacent rows and columns, which is
+    what OASIS specifies, thus might not be integral.  If they are
+    not, gds2oasis rounds to the nearest integer.  There is no
+    warning message.
+
+
+  - In TEXT elements, the PRESENTATION, PATHTYPE, and WIDTH records have
+    no analogues in the OASIS TEXT record.  gds2oasis stores their
+    contents in the following non-standard OASIS properties instead.
+
+        GDS_PRESENTATION
+            This has three unsigned-integer values:
+                1. font  (value 0, 1, 2, or 3)
+                2. vertical justification (value 0, 1, or 2)
+                3. horizontal justification (value 0, 1, or 2)
+
+        GDS_PATHTYPE
+            This has one unsigned-integer value: the contents of the
+            PATHTYPE record.  Path type 1 (rounded ends) is left
+            untouched here.
+
+        GDS_WIDTH
+            This has one signed-integer value: the width.
+            Negative widths are left untouched here.
+
+    It writes each property only if the corresponding GDSII record
+    appeared and contained value(s) different from the default.
+
+
+  - GDSII allows TEXT elements to specify a transform (rotation,
+    magnification, and flip) while OASIS does not.  By default gds2oasis
+    ignores the transforms of TEXTs.  If you invoke it with the -t
+    option then for each such transformed TEXT element gds2oasis
+    generates a special cell containing only the OASIS TEXT record
+    equivalent to the (untransformed) GDSII TEXT element, and writes a
+    transformed PLACEMENT referencing this cell instead of the TEXT.
+    The special cell has a name of the form !!TeXt-CeLl-nnn!!  where nnn
+    is an unsigned integer.
+
+
+  - STRANS records have two flags, absolute magnification and
+    absolute angle, that OASIS does not support.  If either of these
+    flags is set, gds2oasis ignores them, i.e., it considers the
+    magnification/angle to be relative, and prints warnings like
+    these:
+
+    gds2oasis: file 'foo.gds, structure 'cell_bar', element at offset 8888:
+        warning: SREF 'cell_xxx' has absolute angle; changed to relative
+
+    gds2oasis: file 'foo.gds, structure 'cell_bar', element at offset 8888:
+        warning: SREF 'cell_xxx' has absolute magnification; changed to relative

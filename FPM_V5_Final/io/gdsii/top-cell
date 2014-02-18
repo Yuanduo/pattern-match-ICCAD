@@ -1,0 +1,60 @@
+#! /usr/bin/perl -w
+# top-cell -- print names of top cells in GDSII file, one per line
+#
+# last modified:   12-Oct-2004  Tue  14:21
+#
+# Copyright (c) 2004 SoftJin Infotech Private Ltd.
+# This software may be used only under the terms of the SoftJin
+# Source License.  See the accompanying file LICENSE for details.
+#
+# usage:  top-cell gdsii-file
+#
+# A top cell is a cell that is not referenced by any other cell.
+
+use strict;
+
+
+sub GetTopCells( $ ) {
+    my ($filename) = @_;
+    my (%lhs, %rhs);
+        # cell names that appear on the LHS and RHS of "..." -> "..."
+
+    open DOT, "gds-dot $filename |"
+      or die;
+    while (<DOT>) {
+        if (/"(.+)" -> "(.+)";/) {
+            $lhs{$1} = 1;
+            $rhs{$2} = 1;
+        } elsif (/^\s*"(.+)"/) {
+            $lhs{$1} = 1;
+        }
+    }
+    close DOT;
+
+    # Any cell that has been referenced cannot be the top cell.
+    foreach my $cellname (keys %rhs) {
+        delete $lhs{$cellname};
+    }
+    return (keys %lhs);
+}
+
+
+
+if (@ARGV != 1) {
+    (my $progname = $0) =~ s|.*/||;
+    print STDERR "usage:  $progname gdsii-file\n";
+    exit 1;
+}
+
+
+# Assume that this script is in the directory src/gdsii in the distribution
+# and add the distribution's bin directory to PATH.
+
+my $path = $0;
+if ($path =~ s|[^/]+$|../../bin|) {
+    $ENV{PATH} .= ":$path";
+}
+
+my @topcells = GetTopCells $ARGV[0];
+print map("$_\n", sort @topcells);
+exit 0;

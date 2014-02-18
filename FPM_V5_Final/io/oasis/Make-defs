@@ -1,0 +1,94 @@
+# oasis/Make-defs					-*- makefile -*-
+#
+# last modified:   01-Jan-2010  Fri  18:31
+#
+# Copyright (c) 2004 SoftJin Infotech Private Ltd.
+# This software may be used only under the terms of the SoftJin
+# Source License.  See the accompanying file LICENSE for details.
+#
+# This file is included by ../Makefile.  All paths are with
+# respect to the parent directory because that is where make runs.
+# ../Makefile defines the variables bindir, libdir, and objdir.
+#
+# Because ../Makefile also includes Make-defs from all sibling
+# directories, all variables defined here begin with 'oasis_' to avoid
+# name conflicts.
+
+
+oasis_library = $(libdir)/liboasis.a
+
+oasis_library_objects =			\
+	$(objdir)/oasis_asc-conv.o	\
+	$(objdir)/oasis_asc-recreader.o	\
+	$(objdir)/oasis_asc-recwriter.o	\
+	$(objdir)/oasis_asc-scanner.o	\
+	$(objdir)/oasis_asc-writer.o	\
+	$(objdir)/oasis_builder.o	\
+	$(objdir)/oasis_compressor.o	\
+	$(objdir)/oasis_creator.o	\
+	$(objdir)/oasis_dicts.o	 	\
+	$(objdir)/oasis_keywords.o	\
+	$(objdir)/oasis_modal-vars.o	\
+	$(objdir)/oasis_names.o	 	\
+	$(objdir)/oasis_oasis.o		\
+	$(objdir)/oasis_parser.o	\
+	$(objdir)/oasis_printer.o	\
+	$(objdir)/oasis_rec-reader.o	\
+	$(objdir)/oasis_rec-writer.o	\
+	$(objdir)/oasis_records.o	\
+	$(objdir)/oasis_rectypes.o	\
+	$(objdir)/oasis_scanner.o	\
+	$(objdir)/oasis_trapezoid.o	\
+	$(objdir)/oasis_validator.o	\
+	$(objdir)/oasis_writer.o
+
+
+oasis_execs =			\
+	$(bindir)/ascii2oasis	\
+	$(bindir)/oasis2ascii	\
+	$(bindir)/oasis-print	\
+	$(bindir)/oasis-validate
+
+
+# Libraries on which the executables in $(oasis_execs) depend.
+# External libraries like libz are not in this list.
+
+oasis_dep_libs =	  \
+	$(oasis_library)  \
+	$(misc_library)
+
+
+# Libraries needed to link the executables in $(oasis_execs)
+
+oasis_link_libs =	  \
+	$(oasis_dep_libs) \
+	$(Zlibrary)
+
+#-----------------------------------------------------------------------
+
+$(objdir)/oasis_%.o:   oasis/%.cc
+	$(COMPILE_CXX) -c $< -o $@
+
+oasis_all:	$(oasis_library) $(oasis_execs)
+
+$(oasis_library):   $(oasis_library_objects)
+	ar rv $@ $?
+
+
+$(bindir)/ascii2oasis:   $(objdir)/oasis_ascii2oasis.o $(oasis_dep_libs)
+	$(LINK_CXX) $(objdir)/oasis_ascii2oasis.o $(oasis_link_libs) -o $@
+
+$(bindir)/oasis2ascii:   $(objdir)/oasis_oasis2ascii.o $(oasis_dep_libs)
+	$(LINK_CXX) $(objdir)/oasis_oasis2ascii.o $(oasis_link_libs) -o $@
+
+$(bindir)/oasis-print:   $(objdir)/oasis_oasis-print.o $(oasis_dep_libs)
+	$(LINK_CXX) $(objdir)/oasis_oasis-print.o $(oasis_link_libs) -o $@
+
+$(bindir)/oasis-validate:   $(objdir)/oasis_oasis-validate.o $(oasis_dep_libs)
+	$(LINK_CXX) $(objdir)/oasis_oasis-validate.o $(oasis_link_libs) -o $@
+
+
+oasis_clean:
+	rm -f oasis/asc-scanner.cc
+	rm -f $(oasis_library) $(oasis_execs) $(objdir)/oasis_*
+	cd oasis;  rm -f $(StandardGarbage)

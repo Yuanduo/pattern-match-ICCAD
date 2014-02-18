@@ -1,0 +1,30 @@
+# oasis/TO-DO
+#
+# last modified:   14-Oct-2004  Thu  11:22
+
+
+- OASIS equivalent of gds-copy:
+    oas-copy [-c none|crc|checksum] [-r] [-z] src dest
+
+- OasisParser::buildCellGraph() like the GdsParser version.
+  Also provide a way to get the list of cells, like GdsParser::makeIndex()
+
+- OasisBuilder methods:  Add filePos arg to let upper layers
+  print file location with messages?  Might be better then to put all
+  the args into a struct and just pass a ptr to the struct.
+
+- Change representation of Repetition and PointList to use deltas as
+  in the file?  Might turn out to be just as convenient for the upper
+  layers as the offsets we now use.  Would be faster and safer --
+  one less place to worry about overflows.
+
+- Change Repetition to allow setting grid after adding points?
+  More convenient for PointGrouper.  Remove the three gridded rep types
+  and let OasisCreator::writeRepetition() decide which reptype to write
+  based on whether the grid == 1.
+
+- oasis-stats:  Print
+    - distribution of cell sizes
+    - for each rectype, number of records and distribution of record lengths
+    - for each rep type, the number of reps of that type
+    - for rep types 10 and 11, distribution of the number of points

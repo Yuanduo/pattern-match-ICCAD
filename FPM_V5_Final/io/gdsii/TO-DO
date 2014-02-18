@@ -1,0 +1,26 @@
+# gdsii/TO-DO
+#
+# last modified:   27-Feb-2005  Sun  20:20
+
+
+- retaining all bits of GDSII 8-byte reals: class GdsReal?
+
+- ASCII representation of bit-array records:
+  keyword/value pairs instead of hex number
+
+- GdsParser: define separate handle/body classes?
+
+- AsciiToGdsConverter: If XY coordinates are in user units
+  (file written with -u), convert them back to db units
+
+- GdsToAsciiConverter: when printing only one cell, print library header
+  + trailer too?  Anything gained by making the output a complete GDSII
+  file that can be converted back to binary?
+
+- ASCII file format: remove count fields?
+
+- gds2ascii: option to print all element records on single line
+  Useful when writing scripts to process elements.
+
+- GdsDate: add ctor?  Should setTime() return bool or throw exception
+  on invalid date?  If bool, what about ctor?

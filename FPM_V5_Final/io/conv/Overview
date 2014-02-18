@@ -1,0 +1,24 @@
+# conv/Overview
+#
+# last modified:   20-Nov-2004  Sat  19:09
+#
+# Copyright (c) 2004 SoftJin Infotech Private Ltd.
+# See the accompanying file LICENSE.
+
+This directory contains the GDSII-to-OASIS converter.
+
+gds-oasis.cc contains the bulk of the converter code.  Most of this file
+is the class GdsToOasisConverter, which drives the conversion.
+
+ptgroup.cc defines the class PointGrouper, which GdsToOasisConverter
+uses to group sets of points into compact OASIS repetition
+specifications.
+
+gds2oasis.cc is a simple command-line program to invoke the converter.
+
+convstats is a Perl script that runs gds2oasis with different sets
+of options and tabulates the results.  This is for developers who want
+to see how well the conversion works.
+
+ConversionNotes describes some peculiarities of the GDSII-to-OASIS
+conversion.

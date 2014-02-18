@@ -1,0 +1,642 @@
+#! /usr/bin/perl -w
+# convstats -- run gds2oasis on many files and give conversion statistics
+#
+# last modified:   29-Oct-2004  Fri  10:15
+#
+# Copyright (c) 2004 SoftJin Infotech Private Ltd.
+# This software may be used only under the terms of the SoftJin
+# Source License.  See the accompanying file LICENSE for details.
+#
+# convstats runs gds2oasis on each of the GDSII files specified and prints
+# conversion statistics.  For each input file gdsfile the OASIS output file
+# is gdsfile.oasis.  If gds2oasis writes anything to stdout or stderr,
+# convstats writes that output to stderr preceded by a line giving the
+# file sequence number.
+
+use strict;
+use File::Basename;
+use File::Path;
+use Getopt::Long qw(:config require_order bundling);
+
+(my $progname = $0) =~ s|.*/||;
+
+my $usageMessage = <<EOF;
+usage:  $progname [ [-f field_list] [-o conv_options] ] ... \\
+                  [-d output_dir] [-l] [-p] [-t delimiter] gdsfile ...
+Run
+    perldoc -F $0
+for the manual page.
+EOF
+
+
+#-----------------------------------------------------------------------
+# Defaults for command-line options.
+
+use constant  DefaultDirectory => $ENV{TMPDIR} || '/tmp';
+    # Default for -d (output directory)
+
+use constant  DefaultLogOutput => 0;
+    # Default for -l.  Set to 1 to enable copying of stdout to
+    # convstats.csv and stderr to convstats.log by default.
+
+use constant  DefaultDelimiter => '';
+    # Default for -t.  Empty string means output as formatted table.
+    # Set to ',' to create a CSV file by default.
+
+use constant  DefaultPreserve => 0;
+    # Default for -p.  Set to 1 to preserve by default the OASIS
+    # files generated.
+
+use constant  DefaultFields => "num gsize_kb sz_ratio cputime";
+    # The default columns to print for each run.  The fields that do not
+    # depend on the options (num and gsize) will appear only once
+    # in each output row.
+
+use constant  DefaultRunParams => (
+    { options => '-O1 -z', fields => DefaultFields },
+    { options => '-O2 -z', fields => "sz_ratio cputime" }
+);
+    # Defaults for the combination of -f and -o options.
+    # Each item in this list describes one run of gds2oasis.  The number
+    # of items is the default number of times to invoke gds2oasis for
+    # each input file.  The 'options' entry gives the options to supply
+    # to gds2oasis and the 'fields' entry gives the fields to add to
+    # the statistics table for that run.
+
+#-----------------------------------------------------------------------
+
+
+sub UsageError() {
+    print STDERR $usageMessage;
+    exit 1;
+}
+
+
+
+sub BytesToKB( $ ) {
+    my ($bytes) = @_;
+
+    return (($bytes =~ /\D/) ? $bytes : int($bytes/1024 + 0.5));
+}
+
+
+sub GetFileSize( $ ) {
+    my ($path) = @_;
+    my $size = (stat $path)[7];
+    return $size;
+}
+
+
+
+my %fieldSpecs = (
+#   Columns that appear only once per row
+
+    num =>   { width =>  3, once => 1 },
+    gname => { width => 16, once => 1 },
+    gsize => { width => 10, once => 1 },
+
+    gsize_kb => { width => 8,
+                  once => 1,
+                  pgm => sub { BytesToKB $_[0]->{gsize} }
+                },
+
+#   Columns that appear for each gds2oasis run
+
+    osize => { width => 8 },
+
+    osize_kb => { width => 8,
+                  pgm => sub { BytesToKB $_[0]->{osize} }
+                },
+
+    sz_ratio => { width => 8,
+                  pgm => sub { my $gsize = $_[0]->{gsize};
+                               my $osize = $_[0]->{osize};
+                               return '?' if ("$gsize$osize" =~ /\D/);
+                               sprintf "%.1f", ($gsize/$osize);
+                             }
+                },
+
+    realtime => { width => 8 },
+
+    systime => { width => 7,
+                 pgm => sub { sprintf "%.1f", $_[0]->{systime} }
+               },
+
+    usertime => { width => 8,
+                  pgm => sub { sprintf "%.1f", $_[0]->{usertime} }
+                },
+
+    cputime => { width => 7,
+                 pgm => sub { my $cputime = $_[0]->{systime}
+                                          + $_[0]->{usertime};
+                              sprintf "%.1f", $cputime;
+                            }
+               },
+);
+
+
+
+sub ParseFields( $ ) {
+    my ($fieldString) = @_;
+    my @fieldnames;
+
+    foreach my $fieldname (split /[\s,]+/, $fieldString) {
+        next if ($fieldname eq '');
+        my $spec = $fieldSpecs{$fieldname};
+        defined $spec  or die "invalid field name: $fieldname";
+        push @fieldnames, $fieldname;
+    }
+
+    return @fieldnames;
+}
+
+
+my %conf;
+
+
+
+# ParseCommandLine
+# Parse command line to get the configuration for this run.
+# Stores the configuration in the global variable %conf.
+
+sub ParseCommandLine() {
+    my %once;           # once-only fields that have already appeared
+
+    # Defaults
+    my @fields = ParseFields(DefaultFields);
+    $conf{log_output} = DefaultLogOutput;
+    $conf{preserve}   = DefaultPreserve;
+    $conf{delimiter}  = DefaultDelimiter;
+    $conf{directory}  = DefaultDirectory;
+    $conf{run_params} = [ ];
+
+    GetOptions('delimiter|t=s' => \$conf{delimiter},
+               'directory|d=s' => \$conf{directory},
+               'log-output|l'  => \$conf{log_output},
+               'preserve|p'    => \$conf{preserve},
+               'fields|f=s'    => sub { @fields = ParseFields($_[1]); },
+
+               'options|o=s'   =>
+                   sub { my @f = grep !$once{$_}, @fields;
+                         push @{$conf{run_params}},
+                              { options => $_[1], fields => \@f };
+                         foreach my $f (@f) {
+                             $once{$f} = 1 if $fieldSpecs{$f}->{once};
+                         }
+                       }
+              )
+      or UsageError();
+
+    if (@{$conf{run_params}} == 0) {
+        foreach my $param (DefaultRunParams) {
+            my @fields = ParseFields $param->{fields};
+            push @{$conf{run_params}},
+                 { options => $param->{options}, fields => \@fields };
+        }
+    }
+
+    @ARGV > 0  or  UsageError();
+    @{$conf{gdsfiles}} = @ARGV;
+}
+
+
+
+# RunCommand $cmd, $results
+# Run command and store exit status, output, and execution times in a hash.
+#   $cmd        command to run
+#   $results    ref to hash where results should be stored
+#
+# These fields of the hash are written:
+#   output      whatever the command wrote to its stdout or stderr.
+#               The empty string if the command did not write anything.
+#   status      wait status of the command.  Strictly, wait status of
+#               the shell that invoked the command.
+#   realtime    wall clock time taken by the command, seconds.
+#               This is accurate only to a second.
+#   usertime    user cpu time taken by the command, seconds
+#   systime     system cpu time taken by the command, seconds
+#
+# Dies if the command could not be executed.
+
+sub RunCommand( $$ ) {
+    my ($cmd, $results) = @_;
+    local *CMD;
+
+    # Time::HiRes was made part of the standard distribution only recently.
+    # To keep the script simple and portable, use seconds-since-epoch to
+    # measure the real time taken.
+
+    my ($userStart, $sysStart) = (times)[2,3];
+    my $realStart = time();
+
+    local $/;           # enable slurp mode
+    open(CMD, "$cmd 2>&1 |")
+      or die "cannot run command \"$cmd\": $!";
+    $results->{output} = <CMD>;
+    close CMD;
+    $results->{status} = $?;
+
+    my ($userEnd, $sysEnd) = (times)[2,3];
+    $results->{usertime} = $userEnd - $userStart;
+    $results->{systime}  = $sysEnd - $sysStart;
+    $results->{realtime} = time() - $realStart;
+}
+
+
+
+# RunConverter $gdspath, $oasispath, $options, $rowdata
+# Run gds2oasis on GDSII file and return statistics.
+
+sub RunConverter( $$$$ ) {
+    my ($gdsfile, $oasisfile, $options, $results) = @_;
+
+    my $cmd = "gds2oasis $options $gdsfile '$oasisfile'";
+    RunCommand $cmd, $results;
+    $results->{osize} = GetFileSize($oasisfile) || '?';
+    unlink($oasisfile) unless $conf{preserve};
+}
+
+
+
+#-----------------------------------------------------------------------
+# Directory module
+
+my $deleteDir = 0;
+
+sub InitDirectory() {
+    unless (-d $conf{directory}) {
+        mkpath($conf{directory});      # croaks on failure
+        $deleteDir = 1;
+    }
+}
+
+
+sub FinishDirectory() {
+    if ($deleteDir  &&  ! $conf{preserve}  &&  ! $conf{log_output}) {
+        rmtree($conf{directory});
+    }
+}
+
+
+sub MakeOutputFilePath( $ ) {
+    my ($filename) = @_;
+
+    my $path = "$conf{directory}/$filename";
+    return $path unless -e $path;
+    for (my $num = 1;  ; $num++) {
+        return "$path.$num"  unless -e "$path.$num";
+    }
+}
+
+
+#-----------------------------------------------------------------------
+# Output module
+
+my $log_out;
+my $log_err;
+
+
+sub InitOutput() {
+    return unless $conf{log_output};
+
+    $log_out = MakeOutputFilePath "convstats.csv";
+    $log_err = MakeOutputFilePath "convstats.log";
+    open LOG_OUT, "> $log_out"
+      or die "cannot create $log_out: $!";
+    open LOG_ERR, "> $log_err"
+      or die "cannot create $log_err: $!";
+}
+
+
+sub WriteStdout( $ ) {
+    my ($output) = @_;
+    print(STDOUT  $output, "\n");
+    print(LOG_OUT $output, "\n")   if $conf{log_output};
+}
+
+
+sub WriteStderr( $ ) {
+    my ($output) = @_;
+    print(STDERR  $output, "\n");
+    print(LOG_ERR $output, "\n")   if $conf{log_output};
+}
+
+
+sub FinishOutput() {
+    return unless $conf{log_output};
+
+    close LOG_OUT  or die "cannot close $log_out: $!";
+    close LOG_ERR  or die "cannot close $log_err: $!";
+}
+
+
+#-----------------------------------------------------------------------
+# Line formatter module
+
+
+sub FormatLine {
+    my @values = @_;
+
+    if ($conf{delimiter} ne '') {
+        return (join $conf{delimiter}, @values);
+    }
+
+    my $line = '';
+    foreach my $param (@{$conf{run_params}}) {
+        foreach my $fieldname (@{$param->{fields}}) {
+            my $val = shift @values;
+            my $spec = $fieldSpecs{$fieldname};
+            my $pad = $spec->{width} - length($val);
+            $line .= ' ' if ($line ne '');
+            $line .= (' ' x $pad)  if $pad > 0;
+            $line .= $val;
+        }
+    }
+    return $line;
+}
+
+
+
+sub MakeHeaderLines() {
+    my @row1;
+    my @row2;
+
+    foreach my $param (@{$conf{run_params}}) {
+        my $options = $param->{options};
+        foreach my $fieldname (@{$param->{fields}}) {
+            my $spec = $fieldSpecs{$fieldname};
+            my $len = length $fieldname;
+            push @row1, $fieldname;
+            if ($spec->{once}) {
+                push @row2, '';
+            } else {
+                push @row2, $options;
+                if (length($options) > $len) {
+                    $len = length $options;
+                }
+            }
+            if ($len > $spec->{width}) {
+                $spec->{width} = $len;
+            }
+        }
+    }
+
+    my $line1 = FormatLine @row1;
+    my $line2 = FormatLine @row2;
+    return ($line1, $line2);
+}
+
+
+
+sub MakeColumns( $$ ) {
+    my ($fieldnames, $rowdata) = @_;
+    my @cols;
+
+    foreach my $fieldname (@$fieldnames) {
+        my $spec = $fieldSpecs{$fieldname};
+        my $val;
+        if (defined $spec->{pgm}) {
+            $val = $spec->{pgm}->($rowdata);
+        } else {
+            $val = $rowdata->{$fieldname};
+        }
+        push @cols, $val;
+    }
+    return @cols;
+}
+
+
+
+sub MakeOasisFilename( $$ ) {
+    my ($gdsname, $options) = @_;
+    $options =~ s/\s+//g;
+    $options =~ tr/a-zA-Z0-9\-_.,:+=//cd;
+    return ($gdsname . $options . '.oasis');
+}
+
+
+#-----------------------------------------------------------------------
+
+# Add the directory containing this script to PATH.
+$ENV{PATH} = ($ENV{PATH} || "/bin:/usr/bin") . ':' . dirname($0);
+
+# Parse command line and store options and arguments in global hash %conf.
+ParseCommandLine();
+
+InitDirectory();
+InitOutput();
+
+foreach my $line (MakeHeaderLines()) {
+    WriteStdout $line;
+}
+WriteStdout '';
+
+my $seqnum = 0;
+foreach my $gdspath (@{$conf{gdsfiles}}) {
+    $seqnum++;
+    my %rowdata;
+    my @row;
+
+    my $gname = basename($gdspath);
+    $rowdata{num} = $seqnum;
+    $rowdata{gname} = $gname;
+    $rowdata{gsize} = GetFileSize($gdspath) || '?';
+    foreach my $params (@{$conf{run_params}}) {
+        my $options = $params->{options};
+        my $oname = MakeOasisFilename $gname, $options;
+        my $opath = MakeOutputFilePath $oname;
+        my $result = RunConverter $gdspath, $opath, $options, \%rowdata;
+        push @row, MakeColumns($params->{fields}, \%rowdata);
+
+        if ($rowdata{output} ne '') {
+            my $sep = '-'x70 . "\n";
+            my $errout = $sep
+                       . "$seqnum:  file '$gname', options '$options'\n"
+                       . $sep
+                       . $rowdata{output};
+            WriteStderr $errout;
+        }
+    }
+    WriteStdout(FormatLine @row);
+}
+
+FinishOutput();
+FinishDirectory();
+
+exit 0;
+
+
+#=======================================================================
+__END__
+
+
+=head1 NAME
+
+convstats - convert GDSII files to OASIS and print conversion statistics
+
+=head1 SYNOPSIS
+
+B<convstats> [ [S<B<-f> I<field_list>>] [S<B<-o> I<conv_options>>] ] ...
+[S<B<-d> I<output_dir>>]
+[B<-l>]
+[B<-p>]
+[S<B<-t> I<delimiter>>]
+I<gdsfile> ...
+
+
+=head1 DESCRIPTION
+
+B<convstats> is useful for measuring the performance of B<gds2oasis>.  It
+can run B<gds2oasis> on several GDSII files with different conversion
+options, note the time taken for each conversion and size of the
+resulting OASIS file, and print out the results as a table or in
+CSV (comma-separated values) format.
+
+B<convstats> writes the statistics table to its standard output.  If
+B<gds2oasis> writes anything to its standard output or standard error,
+B<convstats> collects that and writes it to its own standard error,
+preceded by an identification line.  With the B<-l> option, B<convstats>
+copies whatever it writes to log files.
+
+The statistics table has two rows of column headers followed by one row
+for each input file.  You can configure what columns appear on each row
+using the B<-f> and B<-o> options.
+
+
+=head1 OPTIONS
+
+Options may be specified using short or long forms.
+
+=over 4
+
+=item B<-d> I<outdir>, B<--directory=>I<outdir>
+
+The output directory.  B<convstats> creates all files in the directory
+I<outdir>, creating the directory itself if it does not already exist.
+The default is to create the files in C<$TMPDIR> if that is set, and
+F</tmp> otherwise.  If B<convstats> creates the directory then on exit
+it will delete the directory, unless B<-l> or B<-p> is specified.
+
+=item B<-l>, B<--log-output>
+
+Copy anything written to standard output or standard error to log files in
+the output directory.  Standard output is logged to F<convstats.csv> and
+standard error to F<convstats.log>.  Numeric suffixes (C<.1>, C<.2>, etc.)
+are added if the files already exist.
+
+=item B<-p>, B<--preserve>
+
+Preserve all the OASIS files created.  The default is to delete them
+immediately.  Each OASIS file is created in the output directory.  Its name
+consists of the basename of the GDSII file followed by the options to
+gds2oasis followed by `F<.oasis>'.  For example, the OASIS file
+generated using S<C<gds2oasis -O1 -z>> from F<foo.gds> will be named
+F<foo.gds-O1-z.oasis>.
+
+If a file with the generated name already exists in the output directory, a
+numeric suffix (F<.1>, F<.2>, etc.) is appended to the name, e.g.,
+F<foo.gds-O1-z.oasis.1>.
+
+
+=item B<-t> I<delimiter>, B<--delimiter=>I<delimiter>
+
+Print the string I<delimiter> between fields in the table of results.
+The default is to use whitespace and align the columns.  Use `B<-t,>'
+if you want CSV output.
+
+
+=item B<-f> I<field_list>, B<--fields=>I<field_list>
+
+Field list.  Specifies the columns to print for each run.  The option
+argument I<field_list> is a list of field names separated by spaces or
+commas.  The valid field names are listed below.
+
+The default is B<num,gsize,osize,sz_ratio,realtime>.  You may give this
+option more than once.  Each appearance of B<-f> applies to all
+following B<-o> options.
+
+The fields that do not depend on the OASIS file--B<num>, B<gname>,
+B<gsize>, and B<gsize_kb>--will appear only once on each row regardless
+of how many times they appear in B<-f> options.
+
+=over 4
+
+=item B<num>
+
+Sequence number of file in argument list, starting from 1.
+
+=item B<gname>
+
+Basename of the GDSII file.
+
+=item B<gsize>
+
+Size of GDSII file in bytes.
+
+=item B<gsize_kb>
+
+Size of GDSII file in kilobytes.
+
+=item B<osize>
+
+The size of the OASIS file in bytes.
+
+=item B<osize_kb>
+
+The size of the OASIS file in kilobytes.
+
+=item B<realtime>
+
+The real (wall clock) time taken for the conversion, in seconds.  This
+uses the low-resolution timer, so the output is correct only to a
+second.
+
+=item B<usertime>
+
+The user CPU time taken for the conversion, in seconds.
+
+=item B<systime>
+
+The system CPU time taken for the conversion, in seconds.
+
+=item B<cputime>
+
+The total CPU time (both user and system) taken for the conversion, in
+seconds.
+
+=item B<sz_ratio>
+
+The ratio of GDSII file size to OASIS file size.  This is the main
+benchmark quantity.
+
+=back
+
+
+=item B<-o> I<conv_options>, B<--options=>I<conv_options>
+
+The options to pass to B<gds2oasis>.  You should of course quote
+I<conv_options> when you want to pass more than one option.  You may
+give this option more than once.  For each input file, B<convstats> will
+invoke B<gds2oasis> once for each B<-o> option.  The last preceding
+B<-f> option says which statistics to print for the run.
+
+The default is B<-o "-O1 -z">.
+
+=back
+
+
+=head1 EXAMPLES
+
+Run B<gds2oasis> twice, once with default options and once with
+B<-z>.  Print the default set of fields.
+
+        convstats -o '' -o '-z'
+
+Run B<gds2oasis> twice, first with S<B<-O1 -z>> and then with
+S<B<-O2 -z>>.  In each table row, first print the basename of the
+GDSII file.  Then for the first run print the OASIS file size in bytes,
+the real time and the cpu time.  For the second run, print just the
+OASIS file size and the ratio of GDSII/OASIS file sizes.
+
+        convstats -f gname,osize,realtime,cputime -o '-O1 -z' \
+                  -f osize,sz_ratio -o '-O2 -z'

@@ -1,0 +1,310 @@
+# oasis/Overview
+#
+# last modified:   26-Dec-2009  Sat  06:13
+#
+# Copyright (c) 2004 SoftJin Infotech Private Ltd.
+# See the accompanying file LICENSE.
+
+This is an overview of the code in this directory.  If you just want to
+understand how to use the library to read and write OASIS files, read
+the file Tutorial or Tutorial.pdf.
+
+OASIS stands for Open Artwork System Interchange Standard.  Like
+GDSII Stream Format, it is a file format for describing IC layouts.  It
+is intended to be the successor to GDSII.  The standard is available
+from www.semi.org; its document number is P39-0304.
+
+
+OASIS file format
+=================
+
+OASIS is record-oriented like GDSII, but its records are more complex.
+The records have no header, may contain fields of different types, and
+may have optional fields.  Each element in OASIS is stored in a single
+record.  Name records associate strings with unsigned integers called
+reference-numbers.  Other records can save space by using the
+reference-number to refer to the string instead of repeating the string.
+Properties may be associated with the file, cells, elements, and names.
+
+The OASIS specification defines about 25 'modal variables' whose values
+are set from fields in element and PROPERTY records as the records are
+parsed.  A record may omit a field if it has the same value as the
+corresponding modal variable.  This makes the file smaller.
+
+
+
+Main classes
+============
+
+Most of the .cc files in this directory are used to build the library
+liboasis.a.  These files define all their symbols in the namespace
+Oasis.  Some .cc files are simple applications that provide a
+command-line interface to the functionality provided by the library
+classes.  The applications are described at the end of this file.
+
+The main library classes are organized into three layers in four groups.
+
+
+    BINARY INPUT       BINARY OUTPUT       ASCII INPUT        ASCII OUTPUT
+------------------------------------------------------------------------------
+3   OasisParser         OasisCreator                          OasisPrinter
+              OasisBuilder
+------------------------------------------------------------------------------
+2 OasisRecordReader  OasisRecordWriter   AsciiRecordReader  AsciiRecordWriter
+------------------------------------------------------------------------------
+1   OasisScanner        OasisWriter        AsciiScanner       AsciiWriter
+------------------------------------------------------------------------------
+
+The two groups on the left deal with the (binary) OASIS format and the
+two on the right with the ASCII equivalent of OASIS.
+
+
+Layer 1
+-------
+
+Layer 1 is the lexical layer.  OasisScanner reads bytes from an OASIS
+file and assembles them into tokens -- integers, reals, deltas, etc.
+AsciiScanner, which is a class wrapper for the flex-generated scanner,
+does the same thing with the ASCII files.  The output classes
+OasisWriter and AsciiWriter take tokens and write out their binary or
+character representations.
+
+OasisScanner and OasisWriter use classes in Layer 0 to compress and
+decompress CBLOCKs and to compute the validation signature.  Those
+classes are described later.
+
+
+Layer 2
+-------
+
+Layer 2 is the syntactic layer.  OasisRecordReader reads tokens using
+OasisScanner and assembles them into records with as little
+interpretation and error-checking as possible.  AsciiRecordReader does
+the same thing using AsciiScanner to read tokens from the ASCII file.
+The output classes OasisRecordWriter and AsciiRecordWriter write out the
+records, using OasisWriter and AsciiWriter respectively.
+
+Layer 2 also contains two other classes: OasisToAsciiConverter and
+AsciiToOasisConverter.  These lie above the RecordReaders and
+RecordWriters.  They are not shown in the table above because they
+don't fit into the input/output binary/ASCII classification.
+
+OasisToAsciiConverter converts OASIS files to their ASCII equivalents.
+It reads binary records using OasisRecordReader and writes ASCII records
+using AsciiRecordWriter.  AsciiToOasisConverter converts the other way,
+using AsciiRecordReader to read ASCII records and OasisRecordWriter to
+write binary records.
+
+The sample file sample.ascoas describes the format of the ASCII
+equivalent of OASIS.
+
+
+Layer 3
+-------
+
+Layer 3 is the semantic layer.  It deals with names, cells, elements,
+and properties instead of records.  OasisParser reads records using
+OasisRecordReader, resolves reference numbers into names, fills in
+implicit values using the modal variables, and passes the data up to the
+application.
+
+OasisParser is an event-based parser.  Its interface is not an abstract
+syntax tree but another class, OasisBuilder.  (For an explanation of the
+Builder pattern, see the book Design Patterns by Gamma, Helm, Johnson,
+and Vlissides.)  If you are familiar with SAX, the Simple API for XML,
+you can think of OasisBuilder as the OASIS analogue of SAX's
+ContentHandler.
+
+OasisBuilder has virtual member functions for each part of the OASIS
+file, e.g., beginCell(), endCell(), beginPlacement(), beginText(), etc.
+OasisParser invokes the builder's methods as it parses each piece of the
+OASIS file.  To use OasisParser the application must derive a class from
+OasisBuilder, override the virtual functions for the parts of the file
+that matter to it, and pass an instance of this class to OasisParser.
+
+OasisCreator is the output equivalent of OasisParser, a high-level
+interface for creating OASIS files.  OasisCreator lies above
+OasisRecordWriter in the layer diagram above, but it directly uses
+OasisWriter.  That is because using OasisRecordWriter would not save it
+much work.
+
+OasisCreator is derived from OasisBuilder, and the member functions you
+must invoke to create an OASIS file (beginCell(), beginPlacement(),
+beginText(), etc.)  are the same ones that OasisParser invokes when it
+parses a file.  So you can make a logical copy of an OASIS file by
+passing a OasisCreator instance to OasisParser.
+
+OasisPrinter is also derived from OasisBuilder and has nearly the same
+interface as OasisCreator, but instead of writing an OASIS file it
+prints the data in a human-readable format.  Although OasisPrinter
+appears above AsciiRecordWriter, it does not use AsciiRecordWriter or
+even write files in the same format.  Instead, it prints the logical
+contents of the file in a format useful only for debugging.
+
+
+Files
+-----
+
+These are the files that contain the classes described so far.  Every
+.cc and .l file has a corresponding .h file as its interface.
+
+    asc-conv.cc         AsciiToOasisConverter, OasisToAsciiConverter
+    asc-recreader.cc    AsciiRecordReader
+    asc-recwriter.cc    AsciiRecordWriter
+    asc-scanner.l       AsciiScanner
+    asc-writer.cc       AsciiWriter
+    builder.cc          OasisBuilder
+    creator.cc          OasisCreator
+    parser.cc           OasisParser
+    printer.cc          OasisPrinter
+    rec-reader.cc       OasisRecordReader
+    rec-writer.cc       OasisRecordWriter
+    scanner.cc          OasisScanner
+    writer.cc           OasisWriter
+
+
+
+Supporting classes and files
+============================
+
+We turn now to the many supporting classes and constants that the
+main classes use to exchange data.  First, a couple of files that do
+not fit into the layering scheme.
+
+
+    File                Description
+    ---------------------------------------------------------------
+    oasis.h             basic types and constants used by several layers
+
+oasis.h provides symbolic names for miscellaneous constants
+mentioned in the OASIS spec, e.g., the magic string that begins the file
+and the length of the END record.
+
+It also provides basic types that are used in many files, e.g., Oreal
+for OASIS reals, Delta for positions, and Repetition of the repetition
+specifications in element records.  The types belong to different
+layers: Oreal and Delta are in Layer 1 but Repetition is in Layer 3.
+All are clubbed into one file for convenience.
+
+
+Layer 0
+-------
+
+    File                Classes
+    ---------------------------------------------------------------
+    compressor.cc       Compressor, ZlibCompressor,
+                        Decompressor, ZlibDecompressor
+    validator.cc        Validator, Crc32Validator, Checksum32Validator
+
+compressor.cc and validator.cc deal with raw blocks of data from OASIS
+(binary) files.  compressor.cc provides classes for compressing and
+decompressing CBLOCKS.  validator.cc provides classes for generating the
+checksum or CRC in the END record.
+
+Compressor is an abstract strategy class that defines the interface
+OasisWriter uses for compression.  (See the book Design Patterns if you
+are not familiar with strategy classes.)  It has one concrete subclass,
+ZlibCompressor, for the single compression method currently defined.
+Similarly Decompressor is an abstract class that defines the
+decompression interface used by OasisScanner, and has one concrete
+subclass, ZlibDecompressor.
+
+Validator is an abstract strategy class that defines the interface
+OasisScanner and OasisWriter use to compute the validation signature.
+It has two concrete subclasses, Crc32Validator and Checksum32Validator,
+for the two kinds of signature computation that OASIS specifies.
+
+
+Layer 1
+-------
+
+    File                Description
+    ---------------------------------------------------------------
+    rectypes.cc         enumerators and names for record-IDs
+    keywords.cc         names of fields in ASCII file
+
+rectypes.h defines enumerators for the OASIS record-IDs, and rectypes.cc
+defines names to be used for those record-IDs in error messages and in
+the ASCII file format used by AsciiRecordWriter and AsciiRecordReader.
+
+In the ASCII file, the values of optional fields in element records are
+specified by name/value pairs.  For example, a rectangle might appear
+like this:
+
+    RECTANGLE  layer 2  width 10  height 20
+
+Each field name is a keyword.  keywords.cc lists all the keywords that
+may appear in the ASCII file and keywords.h lists the enumerators that
+the keywords are mapped to internally.
+
+
+Layer 2
+-------
+
+    File                Description
+    ---------------------------------------------------------------
+    records.cc          structs to hold contents of OASIS records
+
+records.h and records.cc define structs to hold the contents of records
+passed into or out of OasisRecordReader, OasisRecordWriter,
+AsciiRecordReader, and AsciiRecordWriter.
+
+
+Layer 3
+-------
+
+    File                Description
+    ---------------------------------------------------------------
+    names.cc            names and properties
+    dicts.cc            dictionaries to manage names
+    infobyte.h          names for the bits in all the info-bytes
+    modal-vars.cc       store values of modal variables
+    trapezoid.cc        Trapezoid
+
+names.cc defines classes to hold the contents of name records and the
+associated PROPERTY records.  It defines the base class OasisName
+and subclasses LayerName and XName.  (The base class itself is used for
+the other kinds of names.)  The file also defines classes PropValue,
+PropValueVector, Property, and PropertyList for property lists.
+
+dicts.cc defines dictionaries, which are essentially internal
+representations of the name tables in OASIS files.  OasisParser uses
+them to manage the OasisNames it creates, and to get the
+reference-number given an OasisName or an OasisName given its
+reference-number.
+
+infobyte.h provides names for the bits in the info-byte of the element
+and PROPERTY records.
+
+modal-vars.cc provides the class ModalVars, which holds the values of
+the modal variables.  OasisParser and OasisCreator use this class.
+
+trapezoid.cc provides the class Trapezoid to represent OASIS trapezoids,
+both compressed and uncompressed.
+
+
+
+Applications
+============
+
+In addition to the library source, this directory has some trivial
+applications that exercise parts of the library.
+
+oasis-print.cc
+        is a wrapper for OasisPrinter.
+        It prints the contents of an OASIS file at a high level, after
+        resolving reference-numbers and filling in implicit values using
+        the modal variables.
+
+oasis-validate.cc
+        validates OASIS files that have a validation signature.
+
+oasis2ascii.cc
+        is a wrapper for OasisToAsciiConverter.
+        It translates OASIS files into their ASCII equivalents.  Unlike
+        oasis-print it works at a low level, writing a text version
+        that can be converted back to OASIS.
+
+ascii2oasis.cc
+        is a wrapper for AsciiToOasisConverter.
+        It translates the ASCII file produced by oasis2ascii back to OASIS.
